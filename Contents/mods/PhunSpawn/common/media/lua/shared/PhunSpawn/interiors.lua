@@ -51,7 +51,7 @@ end
 -- TODO: this ships no `locations`, because there is no map yet. A room with
 -- no stamps registers and allocates nothing, which is the honest state of
 -- affairs. Fill it from the map once the cells exist, reading the origins out
--- of the lotpacks with PhunInteriors' Docs/tiles.pl rather than off a grid.
+-- of the lotpacks with PhunInteriors' scripts/tiles.pl rather than off a grid.
 function Core.registerRooms()
     if not Core.interiorsReady() then
         Core.debugLn("PhunInteriors is not installed, so spawn rooms are off")

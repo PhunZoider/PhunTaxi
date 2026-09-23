@@ -63,7 +63,7 @@ if not defined HOME set HOME=%USERPROFILE%
 
 if not defined PERL (
     echo [map] *** perl not found, checks NOT run ***
-) else if not exist "%PI_REPO%\Docs\roomcheck.pl" (
+) else if not exist "%PI_REPO%\scripts\roomcheck.pl" (
     echo [map] *** no PhunInteriors checkout at %PI_REPO%, checks NOT run ***
 ) else (
     pushd "%PI_REPO%"
@@ -73,7 +73,7 @@ if not defined PERL (
     rem it by our interiors.lua. Checking our map without their lua reports
     rem every interior square as claimed by nobody, and checking it without
     rem their MAP reports all 990 of their slots as sitting on nothing.
-    "!PERL!" Docs\roomcheck.pl --mod "%SELF%"
+    "!PERL!" scripts\roomcheck.pl --mod "%SELF%"
     if errorlevel 1 echo [map] *** roomcheck FAILED -- the registry does not match this map ***
 
     rem The border fence, read out of the lotpack that just landed. A gap here
@@ -86,10 +86,10 @@ if not defined PERL (
     if not exist "%MAPS%\*.lotpack" (
         echo [map] no lotpacks in the repo yet, skipping fencecheck
     ) else (
-        "!PERL!" Docs\fencecheck.pl "%MAPS%" >nul 2>&1
+        "!PERL!" scripts\fencecheck.pl "%MAPS%" >nul 2>&1
         if errorlevel 1 (
             echo [map] *** fencecheck FAILED -- gaps in the border fence ***
-            "!PERL!" Docs\fencecheck.pl "%MAPS%" 2>nul | findstr /C:"gap" /C:"turns" /C:"cells,"
+            "!PERL!" scripts\fencecheck.pl "%MAPS%" 2>nul | findstr /C:"gap" /C:"turns" /C:"cells,"
         )
     )
 
@@ -98,7 +98,7 @@ if not defined PERL (
     rem runs AFTER the export, so it repairs the project for the NEXT one and a
     rem non-zero exit is the news that this export was built from spilled rects.
     if defined PS_MAPSRC for %%D in ("%PS_MAPSRC%\..") do (
-        "!PERL!" Docs\tighten.pl --detect "%%~fD"
+        "!PERL!" scripts\tighten.pl --detect "%%~fD"
         if errorlevel 2 echo [map] *** lot rects were spilled -- THIS export is stale, re-export and re-run ***
     )
     popd
@@ -107,10 +107,10 @@ if not defined PERL (
     rem else checks it -- it is not a zone, it is a 1024 byte tail on the
     rem lotheader. zombies.pl always exits 0, so read the line it prints.
     for %%H in ("%MAPS%\*.lotheader") do (
-        "!PERL!" "%PI_REPO%\Docs\zombies.pl" "%%H" | findstr /C:"all 1024 chunks zero" >nul
+        "!PERL!" "%PI_REPO%\scripts\zombies.pl" "%%H" | findstr /C:"all 1024 chunks zero" >nul
         if errorlevel 1 (
             echo [map] *** %%~nH has a NON-ZERO zombie density ***
-            "!PERL!" "%PI_REPO%\Docs\zombies.pl" "%%H"
+            "!PERL!" "%PI_REPO%\scripts\zombies.pl" "%%H"
         )
     )
 )

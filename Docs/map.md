@@ -5,7 +5,7 @@ PhunInteriors until 2026-09-20, when it was carved out so this mod could own
 it. PhunInteriors no longer ships it, and it must not: maps sharing a `lots=`
 chain share one coordinate space and `IsoLot.MapFiles` is ordered, so two maps
 shipping 87,49 means the loser's cell is discarded with **no warning**.
-`perl Docs/cells.pl` in the PhunInteriors repo is what checks that.
+`perl scripts/cells.pl` in the PhunInteriors repo is what checks that.
 
 ## Where it is built
 
@@ -18,7 +18,7 @@ It exports to `lots_phunspawn`, **never** to `lots`. That folder is
 PhunInteriors' `PI_MAPSRC`, and its `map.cmd` robocopies the whole of it into
 that repo, so a cell exported there would be shipped by the wrong mod.
 
-Run `perl Docs/tighten.pl` from the PhunInteriors repo after any WorldEd
+Run `perl scripts/tighten.pl` from the PhunInteriors repo after any WorldEd
 session and **before** exporting. WorldEd rewrites every border lot rect to the
 building plus one on save, and that extra square blanks the neighbouring
 square's wall. It covers every `.pzw` in the folder, this one included.
@@ -88,7 +88,7 @@ PhunInteriors' all black one, which is zero everywhere.
 Verify it rather than assuming, after every export:
 
 ```bash
-perl Docs/zombies.pl <this mod>/media/maps/phunspawn/87_49.lotheader
+perl scripts/zombies.pl <this mod>/media/maps/phunspawn/87_49.lotheader
 #   all 1024 chunks zero -- nothing spawns here
 ```
 

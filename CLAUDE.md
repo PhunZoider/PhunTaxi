@@ -270,8 +270,8 @@ dedicated server does not have.
 3. **The arrival room ships no `locations`.** A room with no stamps registers
    and allocates nothing, which is the honest state of affairs rather than a
    failure. Fill it once the cells exist, reading origins out of the lotpacks
-   with PhunInteriors' `Docs/tiles.pl` rather than off a grid, and check with
-   `Docs/roomcheck.pl`.
+   with PhunInteriors' `scripts/tiles.pl` rather than off a grid, and check with
+   `scripts/roomcheck.pl`.
 4. **The taxi and player built phones have never run in game.**
    `taxi_spec.lua` covers the order and outcome of every check without a
    square. Unproven, in order of risk:
