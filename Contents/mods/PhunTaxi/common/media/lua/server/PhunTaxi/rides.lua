@@ -1,11 +1,11 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/taxi"
-local Core = PhunSpawn
-local Unlocks = require "PhunSpawn/unlocks"
-local PhoneSwap = require "PhunSpawn/phone_swap"
+require "PhunTaxi/points"
+require "PhunTaxi/taxi"
+local Core = PhunTaxi
+local Unlocks = require "PhunTaxi/unlocks"
+local PhoneSwap = require "PhunTaxi/phone_swap"
 local Rides = {}
 
 -- ---------------------------------------------------------------------------
@@ -99,31 +99,38 @@ end
 --- translation key and `arg` what it names.
 function Rides.ride(player, args)
     if not Core.settings.TaxiFastTravel then
-        return nil, "IGUI_PhunSpawn_TaxiOff"
+        return nil, "IGUI_PhunTaxi_TaxiOff"
     end
 
     local key, record = PhoneSwap.phoneAt(player, args)
     if not key then
         return nil, record
     end
-    local fromId = PhoneSwap.pointId(key)
+    local fromId = PhoneSwap.idOf(key)
+    -- A taxi is called from a phone already found. Picking it up is how it is
+    -- found, so an unknown phone is never a shortcut past discovery.
+    if not Unlocks.has(player, fromId) then
+        return nil, "IGUI_PhunTaxi_TaxiPhoneUnknown"
+    end
 
+    -- Only to a point with a phone: a pay phone's own, or a place registered
+    -- with one.
     local id = args and args.id
     local point = id and Core.points[id]
-    if not point or point.discovery ~= Core.discovery.used then
-        return nil, "IGUI_PhunSpawn_NoSuchPoint"
+    if not point or not point.phoneKey then
+        return nil, "IGUI_PhunTaxi_NoSuchPoint"
     end
     if id == fromId then
-        return nil, "IGUI_PhunSpawn_TaxiSamePhone"
+        return nil, "IGUI_PhunTaxi_TaxiSamePhone"
     end
     if not Unlocks.has(player, id) then
-        return nil, "IGUI_PhunSpawn_NotDiscovered"
+        return nil, "IGUI_PhunTaxi_NotDiscovered"
     end
     if Rides.zombiesNear(player) then
-        return nil, "IGUI_PhunSpawn_TaxiZombies"
+        return nil, "IGUI_PhunTaxi_TaxiZombies"
     end
     if Rides.safehouseBlocks(player, point.x, point.y) then
-        return nil, "IGUI_PhunSpawn_TaxiSafehouse", point.label
+        return nil, "IGUI_PhunTaxi_TaxiSafehouse", point.label
     end
 
     local fx, fy = Core.phoneFront(record.x, record.y, record.facing)
@@ -132,16 +139,16 @@ function Rides.ride(player, args)
     if fare > 0 then
         if not wallet then
             Core.logLn("a taxi fare needs PhunMart, which is not installed; set both fare options to 0 for a free taxi")
-            return nil, "IGUI_PhunSpawn_TaxiNoWallet"
+            return nil, "IGUI_PhunTaxi_TaxiNoWallet"
         end
         if wallet:getBalance(player, Rides.POOL) < fare then
-            return nil, "IGUI_PhunSpawn_TaxiCantAfford", Core.formatCents(fare)
+            return nil, "IGUI_PhunTaxi_TaxiCantAfford", Core.formatCents(fare)
         end
     end
 
     if not (PhunInteriors and PhunInteriors.sendTo) then
-        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunSpawn needs")
-        return nil, "IGUI_PhunSpawn_CannotGoThere"
+        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunTaxi needs")
+        return nil, "IGUI_PhunTaxi_CannotGoThere"
     end
     -- Nothing to release: a caller at a phone is out in the world, and one
     -- who holds a room elsewhere keeps it.
@@ -149,10 +156,10 @@ function Rides.ride(player, args)
         x = point.x,
         y = point.y,
         z = point.z
-    }, "phunspawn_taxi", false)
+    }, "phuntaxi_taxi", false)
     if not ok then
         Core.logLn("taxi to " .. id .. " refused by PhunInteriors: " .. tostring(why))
-        return nil, "IGUI_PhunSpawn_CannotGoThere"
+        return nil, "IGUI_PhunTaxi_CannotGoThere"
     end
 
     if fare > 0 then

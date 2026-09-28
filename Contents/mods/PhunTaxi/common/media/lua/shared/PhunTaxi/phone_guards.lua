@@ -1,6 +1,6 @@
-require "PhunSpawn/core"
-require "PhunSpawn/phones"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- Our phones stay where they are and stay standing, unless an admin says
@@ -76,7 +76,7 @@ local function refuse(character)
         return
     end
     lastNote = now
-    character:setHaloNote(getText("IGUI_PhunSpawn_PhoneBolted"), 255, 180, 60, 300)
+    character:setHaloNote(getText("IGUI_PhunTaxi_PhoneBolted"), 255, 180, 60, 300)
 end
 
 --- Take HitByCar off every phone sprite of ours, so a car stops against a

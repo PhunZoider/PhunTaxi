@@ -1,16 +1,16 @@
 if isServer() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/tools"
-require "PhunSpawn/interiors"
-require "PhunSpawn/phone_guards"
-require "PhunSpawn/defaults"
-require "PhunSpawn/client_main"
-require "PhunSpawn/client_context"
-require "PhunSpawn/client_taxi"
-local Core = PhunSpawn
-local Commands = require "PhunSpawn/client_commands"
+require "PhunTaxi/points"
+require "PhunTaxi/tools"
+require "PhunTaxi/interiors"
+require "PhunTaxi/phone_guards"
+require "PhunTaxi/defaults"
+require "PhunTaxi/client_main"
+require "PhunTaxi/client_context"
+require "PhunTaxi/client_taxi"
+local Core = PhunTaxi
+local Commands = require "PhunTaxi/client_commands"
 
 local function setup()
     Events.OnTick.Remove(setup)

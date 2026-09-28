@@ -1,4 +1,4 @@
--- PhunSpawn
+-- PhunTaxi
 --
 -- Spawn points that are earned rather than listed. A character starts knowing
 -- the few the save is configured to give them and finds the rest by walking
@@ -13,11 +13,11 @@
 --   * server files open with `if isClient() then return end`, client files
 --     with `if isServer() then return end`, and in SP both load,
 --   * one code path for SP and MP, through Core.dispatch / Core.respond.
-PhunSpawn = {
-    name = "PhunSpawn",
+PhunTaxi = {
+    name = "PhunTaxi",
     consts = {
         -- global ModData key, and the key every sub table hangs off
-        modDataKey = "PhunSpawn",
+        modDataKey = "PhunTaxi",
         -- Where a PLAYER's unlocks live: Core.data[accountsKey][accountKey],
         -- in global ModData, as {unlocked = {pointId = true}, lastChoice}.
         --
@@ -31,33 +31,33 @@ PhunSpawn = {
         -- LEGACY. Where unlocks and the last choice lived when they were per
         -- character, on the player's modData. Read once per character, folded
         -- into the account and cleared; see unlocks.lua.
-        unlockedKey = "PhunSpawn_unlocked",
-        lastChoiceKey = "PhunSpawn_lastChoice",
+        unlockedKey = "PhunTaxi_unlocked",
+        lastChoiceKey = "PhunTaxi_lastChoice",
         -- Whether this character has been placed yet, on the PLAYER. See
         -- server/placement.lua: nil is "not looked at", "pending" is a new
         -- character still choosing, and a number is when they were placed.
         -- Kept beside the unlocks for the same reason: a character who
         -- rejoins must not be offered a second free choice.
-        spawnedKey = "PhunSpawn_spawned",
+        spawnedKey = "PhunTaxi_spawned",
         -- Durable id of a point a player BUILT, written into the object's
         -- modData. Inside movableData rather than at the top level, because
         -- vanilla drops a top level key on pickup for some object classes and
         -- not others: see the pickup row in PhunInteriors' API table.
-        objectIdKey = "PhunSpawn_pointId",
+        objectIdKey = "PhunTaxi_pointId",
         -- Stamped on a vanilla pay phone once it has had its roll, win or
         -- lose, so it does not roll again every time its chunk loads. The
         -- same sentinel PhunMart puts on a vending machine.
-        phoneRolledKey = "PhunSpawn_phoneRolled",
+        phoneRolledKey = "PhunTaxi_phoneRolled",
         -- On a phone a player built, the account key of who built it, so
         -- their client can offer to take it down. The server's record is the
         -- truth; this is only what the menu reads.
-        phoneOwnerKey = "PhunSpawn_owner",
+        phoneOwnerKey = "PhunTaxi_owner",
         -- The kit a player crafts and builds a phone from.
-        phoneKitItem = "PhunSpawn.PayPhoneKit",
+        phoneKitItem = "PhunTaxi.PayPhoneKit",
         -- The file an admin's work is kept in: points they added, phones
         -- they kept, and renames. In the game's Lua folder rather than the
         -- save, so it survives a wipe. See server/store.lua.
-        storeFile = "PhunSpawn.json",
+        storeFile = "PhunTaxi.json",
         -- What a point an admin added is registered under: this and its
         -- square, so two can never share one.
         customPrefix = "phun.spawn.custom.",
@@ -111,8 +111,12 @@ PhunSpawn = {
         -- client -> server: "add a point on this square, called this".
         -- Saved to the store file, so it survives a wipe.
         adminAddPoint = "adminAddPoint",
-        -- client -> server: "take out a point I added"
+        -- client -> server: "take this point out". A point an admin added
+        -- goes from the store file; any other point, shipped or a third
+        -- party's, is tombstoned there, so it stays gone after a reboot.
         adminRemovePoint = "adminRemovePoint",
+        -- client -> server: "take the tombstone off this point"
+        adminRestorePoint = "adminRestorePoint",
         -- client -> server: "change how a point I added is found"
         adminSetKind = "adminSetKind",
         -- client -> server: "keep the phone on this square after a wipe".
@@ -126,26 +130,26 @@ PhunSpawn = {
         -- Where third party mods register their own points, and where
         -- defaults.lua registers ours. Fired from Core.openRegistration.
         --
-        -- Events rather than an "is PhunSpawn loaded" test on their side: if
+        -- Events rather than an "is PhunTaxi loaded" test on their side: if
         -- we are absent they never fire, so nobody has to guess how far
         -- through booting we are. What this does NOT buy is load order
         -- independence, which comes from the author hooking a vanilla event
         -- and registering from inside it. See README.md.
-        OnRegisterPoints = "PhunSpawnOnRegisterPoints",
-        OnReady = "PhunSpawnOnReady",
+        OnRegisterPoints = "PhunTaxiOnRegisterPoints",
+        OnReady = "PhunTaxiOnReady",
         -- A character unlocked a point. Carries (player, point).
-        OnPointUnlocked = "PhunSpawnOnPointUnlocked",
+        OnPointUnlocked = "PhunTaxiOnPointUnlocked",
         -- A character was spawned at one. Carries (player, point).
-        OnSpawned = "PhunSpawnOnSpawned",
+        OnSpawned = "PhunTaxiOnSpawned",
         -- CLIENT side: a fresh points payload has landed in Client.points.
         -- Carries the payload. The picker's list redraws on it, so a point
         -- found while the window is open shows up without reopening it.
-        OnPointsReceived = "PhunSpawnOnPointsReceived",
+        OnPointsReceived = "PhunTaxiOnPointsReceived",
         -- CLIENT side: the admin list has landed in Client.adminPoints.
         -- Separate from OnPointsReceived because the two payloads say
         -- different things: one is what this character knows, the other is
         -- everything there is.
-        OnAdminPointsReceived = "PhunSpawnOnAdminPointsReceived"
+        OnAdminPointsReceived = "PhunTaxiOnAdminPointsReceived"
     },
     -- Registry, populated by points.lua and by other mods on the register
     -- event.
@@ -155,27 +159,37 @@ PhunSpawn = {
     --            is indexed without anybody having to sequence anything.
     points = {},
     regions = {},
+    --   registryVersion: counts every change to the registry, for a reader
+    --            too hot to rebuild on every call, such as the phone sync
+    --            that LoadGridsquare asks before every square.
+    registryVersion = 0,
+    --   deleted: id -> a point that registered while tombstoned. Never read
+    --            as a point: it is here for the editor to show and for
+    --            Restore to put back. See Core.deletePoint.
+    deleted = {},
     -- Server side only: account key -> {pointId = true}. A cache of the
     -- account record in global ModData, so a lookup does not reach into it
     -- on every tick. The record is the truth; this is the copy, and it is
     -- rebuilt on playerSetup.
     unlocked = {},
-    -- What the store file says, server side: {points, phones, labels}.
-    -- Loaded before anything registers, because a rename is read at
-    -- registration. Written by server/store.lua, except `labels`, which
-    -- Core.renamePoint edits for the store to save. Always empty on a
-    -- client, which is told everything it needs in a payload.
+    -- What the store file says, server side: {points, phones, labels,
+    -- deleted}. Loaded before anything registers, because a rename and a
+    -- tombstone are read at registration. Written by server/store.lua,
+    -- except `labels` and `deleted`, which Core.renamePoint and
+    -- Core.deletePoint edit for the store to save. Always empty on a client,
+    -- which is told everything it needs in a payload.
     saved = {
         points = {},
         phones = {},
-        labels = {}
+        labels = {},
+        deleted = {}
     },
     settings = {},
     ui = {},
     modules = {}
 }
 
-local Core = PhunSpawn
+local Core = PhunTaxi
 
 Core.isLocal = not isClient() and not isServer() and not isCoopHost()
 
@@ -205,10 +219,9 @@ end
 -- Every constraint is a switch and the defaults are the balanced ones.
 Core.defaults = {
     Debug = false,
-    -- A new character wakes up in the spawn room rather than at the point
-    -- itself. Needs PhunInteriors. With it absent this does nothing and the
-    -- character is placed at the point, which is the honest fallback rather
-    -- than a failure.
+    -- A new character wakes up in the spawn room and leaves by taxi. Off,
+    -- or with no room free, they are placed at their fallback point
+    -- instead (server/arrival.lua).
     UseSpawnRoom = true,
     -- How close you have to get before a point counts as found.
     DiscoveryRadius = 12,
@@ -287,7 +300,7 @@ end
 -- implementation is two halves that drift.
 function Core.dispatch(command, args)
     if Core.isLocal then
-        local handlers = require "PhunSpawn/server_commands"
+        local handlers = require "PhunTaxi/server_commands"
         local handler = handlers[command]
         if handler then
             handler(getPlayer(), args or {})
@@ -300,7 +313,7 @@ end
 -- Server -> client, same deal in reverse.
 function Core.respond(player, command, args)
     if Core.isLocal then
-        local handlers = require "PhunSpawn/client_commands"
+        local handlers = require "PhunTaxi/client_commands"
         local handler = handlers[command]
         if handler then
             handler(args or {})

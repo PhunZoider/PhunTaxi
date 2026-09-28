@@ -2,9 +2,9 @@ if isServer() then
     return
 end
 require "TimedActions/ISBaseTimedAction"
-require "PhunSpawn/client_main"
-require "PhunSpawn/phones"
-local Core = PhunSpawn
+require "PhunTaxi/client_main"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
 local Client = Core.client
 
 -- ---------------------------------------------------------------------------
@@ -21,7 +21,25 @@ local Client = Core.client
 -- the house rule and PhunMart2's pattern too.
 -- ---------------------------------------------------------------------------
 
-local Action = ISBaseTimedAction:derive("PhunSpawnUsePhoneAction")
+--- Whether this player already knows the phone, from their points payload.
+--- Before the first payload nothing is known. By its square, which a known
+--- point with a phone carries, since a place registered with a phone keeps
+--- its own id.
+function Client.knowsPhone(phone)
+    local square = phone and phone:getSquare()
+    if not square then
+        return false
+    end
+    local key = Core.phoneKey(square:getX(), square:getY(), square:getZ())
+    for _, point in ipairs(Client.points or {}) do
+        if point.phone == key then
+            return point.known == true
+        end
+    end
+    return false
+end
+
+local Action = ISBaseTimedAction:derive("PhunTaxiUsePhoneAction")
 Client.UsePhoneAction = Action
 
 -- Roughly the Loot animation once through: long enough to read as picking up
@@ -60,7 +78,11 @@ function Action:stop()
 end
 
 function Action:perform()
-    Client.usePhone(self.phone)
+    -- A phone already known has nothing to give, and the server would only say
+    -- so. Calling a taxi from one goes straight to the picker.
+    if not Client.knowsPhone(self.phone) then
+        Client.usePhone(self.phone)
+    end
     if self.andThen then
         self.andThen(self.phone)
     end
@@ -115,8 +137,9 @@ function Client.queueUsePhone(player, phone, andThen)
     ISTimedActionQueue.add(Action:new(player, phone, andThen))
 end
 
---- Walk up to a phone and call a taxi from it: the phone is used (so a new
---- one is remembered), then the picker opens as a taxi from there.
+--- Walk up to a phone and call a taxi from it, then open the picker as a
+--- taxi from there. Only offered on a phone already found (client_context.lua),
+--- and the server refuses a ride from one that is not.
 function Client.queueTaxi(player, phone)
     Client.queueUsePhone(player, phone, function(used)
         local square = used:getSquare()
@@ -140,7 +163,7 @@ end
 
 local BUILD_TICKS = 400
 
-local BuildAction = ISBaseTimedAction:derive("PhunSpawnBuildPhoneAction")
+local BuildAction = ISBaseTimedAction:derive("PhunTaxiBuildPhoneAction")
 Client.BuildPhoneAction = BuildAction
 
 function BuildAction:isValid()
@@ -202,17 +225,17 @@ end
 --
 -- The client already knows what it needs. Every phone it loads comes through
 -- LoadGridsquare, and every phone this player has used is in their points
--- payload under Core.phonePointId of its square. So a phone of ours whose id
--- is not in the payload is one they have not used, and it rings.
+-- payload with the key of its square (Core.phoneKey) as `phone`. So a phone of
+-- ours whose square is not in the payload is one they do not know, and it
+-- rings.
 --
 -- Vanilla phones are noted as well as ours. The server swaps a phone the
 -- first time anybody loads its square, which is usually as somebody walks up,
 -- and a client can load the square before the swapped phone reaches it. So
 -- what stands on a square is asked again at ring time, not trusted from load.
 --
--- What the client cannot know is a phone somebody put down from an item:
--- ours by sprite, but never recorded, so it rings and then says the line is
--- dead. With the guards in place those should be rare.
+-- A phone somebody put down from an item rings too. The server records it
+-- the first time it is used or its square loads, so picking it up works.
 -- ---------------------------------------------------------------------------
 
 -- key -> {x, y, z}: squares seen holding a phone, ours or vanilla. Pruned at
@@ -229,7 +252,7 @@ local function noteSquare(square)
         local name = sprite and sprite:getName()
         if name and (Core.phoneFacing(name) or Core.phoneTargetFacing(name)) then
             local x, y, z = square:getX(), square:getY(), square:getZ()
-            spots[x .. "_" .. y .. "_" .. z] = {
+            spots[Core.phoneKey(x, y, z)] = {
                 x = x,
                 y = y,
                 z = z
@@ -261,23 +284,23 @@ local function standing(spot)
     return vanilla and false or nil
 end
 
--- Phone ids that have already had their ring this session. A phone rings
--- once, long, and then not again until the player logs back in: a short ring
--- every few minutes reads as a clock, and one phone ringing off the hook reads
--- as somebody trying to get through.
+-- Squares of phones that have already had their ring this session. A phone
+-- rings once, long, and then not again until the player logs back in: a short
+-- ring every few minutes reads as a clock, and one phone ringing off the hook
+-- reads as somebody trying to get through.
 local rung = {}
 
 -- Known phones and phones that have had their ring, which are the same thing
--- as far as choosing what to ring goes.
-local function skipIds()
+-- as far as choosing what to ring goes. By square key.
+local function skipKeys()
     local out = {}
     for _, point in ipairs(Client.points or {}) do
-        if point.known then
-            out[point.id] = true
+        if point.known and point.phone then
+            out[point.phone] = true
         end
     end
-    for id in pairs(rung) do
-        out[id] = true
+    for key in pairs(rung) do
+        out[key] = true
     end
     return out
 end
@@ -294,7 +317,11 @@ function Client.stopRing()
     if not ringing then
         return
     end
+    -- The sound loops, so it must be stopped outright. By its handle, and
+    -- then everything on the emitter: a free emitter is only handed out
+    -- empty, so nothing else of anybody's is playing on it.
     ringing.emitter:stopSound(ringing.sound)
+    ringing.emitter:stopAll()
     ringing = nil
     Events.OnTick.Remove(tickRing)
 end
@@ -324,10 +351,10 @@ function Client.ringNearest()
     if not Core.settings.PhoneRing or ringing or not player or not Client.points then
         return
     end
-    local spot = Core.phoneToRing(spots, skipIds(), player:getX(), player:getY(),
+    local spot = Core.phoneToRing(spots, skipKeys(), player:getX(), player:getY(),
         Core.settings.PhoneRingRange or 0, standing)
     if spot then
-        rung[Core.phonePointId(spot.x, spot.y, spot.z)] = true
+        rung[Core.phoneKey(spot.x, spot.y, spot.z)] = true
         Client.ringPhone(spot.x, spot.y, spot.z)
     end
 end

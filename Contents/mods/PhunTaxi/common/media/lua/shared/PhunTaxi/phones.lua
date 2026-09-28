@@ -1,5 +1,5 @@
-require "PhunSpawn/core"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- Pay phones: which vanilla tiles get swapped, and for what.
@@ -37,15 +37,18 @@ Core.phones = {
         N = "phuninteriors_01_19"
     },
     -- What an unused phone rings with, and for how long, in milliseconds.
-    -- Ours, in scripts/PhunSpawn_Sounds.txt. It loops, so it is stopped when
+    -- Ours, in scripts/PhunTaxi_Sounds.txt. It loops, so it is stopped when
     -- the time is up or the phone is answered, and each phone rings once a
     -- session. Real time rather than game time on purpose: ten game minutes
     -- is 25 seconds on a one hour day and ten minutes on a 24 hour one. Its
     -- distanceMax is 30, so PhoneRingRange (default 30) should stay at or
     -- under that: a ring further off is one nobody hears, and it still uses
     -- up that phone's ring for the session.
-    ringSound = "PhunSpawn_PhoneRinging",
+    ringSound = "PhunTaxi_PhoneRinging",
     ringMs = 30000,
+    -- Played on the rider once a taxi has put them down, the free ride out of
+    -- the spawn room included: the cab pulling away from where they stand.
+    driveOffSound = "PhunTaxi_DriveOff",
     -- Where the character stands to use a phone, and so where they wake up
     -- when they spawn at one. The phone's own square is solid.
     front = {
@@ -151,25 +154,32 @@ function Core.phoneSpriteFor(facing, roll)
     return value
 end
 
---- The spawn point id of the phone on a square.
+--- The key of a square, "x_y_z", which is what a phone record is stored under.
 --
--- Built from the square and nothing else, which is what lets the client tell
--- a phone it knows from one it does not: a known phone is in its points
--- payload under exactly this id, and it can build the id from a square it
--- has loaded without being told anything about phones it has not used.
+-- It is also how the client tells a phone it knows from one it does not. A
+-- known phone's point carries its phone's key in the points payload
+-- (`phone`), and the client can build the key from a square it has loaded
+-- without being told anything about phones it has not used. The key and not
+-- the point id, because a point registered with a `phone` keeps its own id.
+function Core.phoneKey(x, y, z)
+    return tostring(x) .. "_" .. tostring(y) .. "_" .. tostring(z or 0)
+end
+
+--- The spawn point id of a swapped, kept or built phone on a square. A point
+--- registered with a `phone` of its own has its own id instead.
 function Core.phonePointId(x, y, z)
-    return "phun.spawn.phone." .. tostring(x) .. "_" .. tostring(y) .. "_" .. tostring(z or 0)
+    return "phun.spawn.phone." .. Core.phoneKey(x, y, z)
 end
 
 --- Which phone should ring: the nearest spot within `range` that has one of
---- our phones standing on it now and whose point is not in `knownIds`.
+--- our phones standing on it now and whose square is not in `knownKeys`.
 --
 -- `spots` is key -> {x, y, z}, the squares the client has seen a phone on,
 -- ours or vanilla. `standing(spot)` answers whether one of OURS is there
 -- now, which is asked at ring time rather than trusted from load time: the
 -- server's swap can land after the client loaded the square. It may also
 -- return nil for "that square is gone", and the spot is then dropped.
-function Core.phoneToRing(spots, knownIds, px, py, range, standing)
+function Core.phoneToRing(spots, knownKeys, px, py, range, standing)
     if not spots or not range or range <= 0 then
         return nil
     end
@@ -182,7 +192,7 @@ function Core.phoneToRing(spots, knownIds, px, py, range, standing)
             local ours = standing(spot)
             if ours == nil then
                 spots[key] = nil
-            elseif ours and not knownIds[Core.phonePointId(spot.x, spot.y, spot.z)] then
+            elseif ours and not knownKeys[Core.phoneKey(spot.x, spot.y, spot.z)] then
                 best, bestDistance = spot, distance
             end
         end
@@ -194,6 +204,13 @@ end
 function Core.phoneFront(x, y, facing)
     local offset = Core.phones.front[facing] or {0, 0}
     return x + offset[1], y + offset[2]
+end
+
+--- The other way round: the square the phone stands on, for a character on
+--- x, y using one facing `facing`.
+function Core.phoneBehind(x, y, facing)
+    local offset = Core.phones.front[facing] or {0, 0}
+    return x - offset[1], y - offset[2]
 end
 
 return Core

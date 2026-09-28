@@ -1,6 +1,7 @@
-require "PhunSpawn/core"
-require "PhunSpawn/tools"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/tools"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- The spawn point registry.
@@ -43,6 +44,7 @@ Core.discovery = {
 
 local function invalidate()
     Core.indexesBuilt = false
+    Core.registryVersion = (Core.registryVersion or 0) + 1
 end
 
 --- Register a spawn point.
@@ -59,9 +61,16 @@ end
 --               that is unlocked from the start should have to say so: the
 --               safe default is the one that gives nothing away.
 --   room        a PhunInteriors room id, if this point wakes you up inside
---               one rather than on the square. Optional, and ignored when
---               PhunInteriors is absent.
+--               one rather than on the square. Optional, and not used yet:
+--               see the TODO in server_commands.lua's spawn handler.
 --   priority    lower sorts first in the picker. Optional.
+--   phone       E, S, W or N: a pay phone of ours stands behind x, y, facing
+--               this way, so the character arrives in front of it. Optional.
+--               The server puts it there when its square loads and puts it
+--               back if it goes, so the point is somewhere a taxi can be
+--               called from and ridden to (server/phone_swap.lua). The point
+--               keeps its own id and its own discovery; using the phone
+--               grants this point.
 function Core.registerPoint(id, def)
     if type(id) ~= "string" or id == "" then
         Core.logLn("registerPoint needs a string id")
@@ -77,6 +86,12 @@ function Core.registerPoint(id, def)
     end
     if type(def.x) ~= "number" or type(def.y) ~= "number" then
         Core.logLn("registerPoint('" .. id .. "') needs numeric x and y")
+        return nil
+    end
+    -- Refused rather than dropped: a point meant to have a phone and quietly
+    -- registered without one is a place nobody can take a taxi from.
+    if def.phone ~= nil and not Core.phones.front[def.phone] then
+        Core.logLn("registerPoint('" .. id .. "') needs phone to be one of E, S, W, N")
         return nil
     end
 
@@ -103,8 +118,25 @@ function Core.registerPoint(id, def)
         -- decide what gets written.
         saved = def.saved == true
     }
+    -- A phone's point, of any sort: which way the phone faces, and the key of
+    -- the square it stands on, which is what the phone's record is stored
+    -- under and what the client knows a phone by.
+    if def.phone then
+        local px, py = Core.phoneBehind(point.x, point.y, def.phone)
+        point.phone = def.phone
+        point.phoneKey = Core.phoneKey(px, py, point.z)
+    end
 
-    Core.points[id] = point
+    -- A deleted id still registers, into the graveyard rather than the
+    -- registry, so the editor can show it and Restore has something to put
+    -- back. Every reader looks in Core.points and so never sees it.
+    if Core.isDeleted(id) then
+        Core.deleted[id] = point
+        Core.points[id] = nil
+    else
+        Core.points[id] = point
+        Core.deleted[id] = nil
+    end
     invalidate()
     return point
 end
@@ -116,12 +148,117 @@ end
 -- filtered on read, which is cheap and which means removing a point set
 -- temporarily and putting it back does not cost anybody their exploring.
 function Core.removePoint(id)
-    if not Core.points[id] then
+    if not Core.points[id] and not Core.deleted[id] then
         return false
     end
     Core.points[id] = nil
+    Core.deleted[id] = nil
     invalidate()
     return true
+end
+
+-- ---------------------------------------------------------------------------
+-- Deleting.
+--
+-- A tombstone, as PhunZones does it: the id goes in the store file's
+-- `deleted` list (Core.saved.deleted), and registration puts a tombstoned id
+-- in Core.deleted instead of Core.points. That is the only way to delete a
+-- point the code registers, ours or a third party's, because the code
+-- registers it again on every boot and would undo any deletion that edited
+-- the registry.
+--
+-- Nothing is lost by it. The registration still happens, so Restore puts
+-- back what the code says today, including a later version's fix; an
+-- admin's own copy of the point in the file, and its rename, stay there for
+-- Restore to bring back too; and no account's unlock list is touched, since
+-- an unlock of a point that is not in Core.points is filtered on read like
+-- any other.
+--
+-- Phones are not deleted this way. A phone is a thing on the map, and it is
+-- released or taken down instead. And the last start point may not go: a
+-- new character with no start point knows nowhere, and has no free ride out
+-- of the spawn room.
+--
+-- These change the tables and nothing else: writing the file is the
+-- caller's job, see server/store.lua.
+-- ---------------------------------------------------------------------------
+
+local function deletedStore()
+    Core.saved.deleted = Core.saved.deleted or {}
+    return Core.saved.deleted
+end
+
+function Core.isDeleted(id)
+    return deletedStore()[id] == true
+end
+
+--- A phone's point: a pay phone, swapped, kept or built.
+function Core.isPhonePoint(point)
+    return point ~= nil and (point.discovery == Core.discovery.used or point.discovery == Core.discovery.built)
+end
+
+--- Whether this is the only start point left.
+function Core.isLastStart(id)
+    local point = Core.points[id]
+    if not point or point.discovery ~= Core.discovery.start then
+        return false
+    end
+    for otherId, other in pairs(Core.points) do
+        if otherId ~= id and other.discovery == Core.discovery.start then
+            return false
+        end
+    end
+    return true
+end
+
+--- Tombstone a point. Returns the point, or nil and a translation key.
+function Core.deletePoint(id)
+    local point = Core.points[id]
+    if not point then
+        return nil, Core.deleted[id] and "IGUI_PhunTaxi_AlreadyDeleted" or "IGUI_PhunTaxi_NoSuchPoint"
+    end
+    if Core.isPhonePoint(point) then
+        return nil, "IGUI_PhunTaxi_CannotDeletePhone"
+    end
+    if Core.isLastStart(id) then
+        return nil, "IGUI_PhunTaxi_LastStart"
+    end
+    deletedStore()[id] = true
+    Core.points[id] = nil
+    Core.deleted[id] = point
+    invalidate()
+    return point
+end
+
+--- Take a tombstone away. Returns the point, or nil and a translation key.
+function Core.restorePoint(id)
+    local point = Core.deleted[id]
+    if not point then
+        return nil, "IGUI_PhunTaxi_NotDeleted"
+    end
+    deletedStore()[id] = nil
+    Core.deleted[id] = nil
+    Core.points[id] = point
+    invalidate()
+    return point
+end
+
+--- Put every registered point where the tombstones say, after the file has
+--- been read again.
+function Core.reapplyTombstones()
+    for id, point in pairs(Core.points) do
+        if Core.isDeleted(id) then
+            Core.points[id] = nil
+            Core.deleted[id] = point
+        end
+    end
+    for id, point in pairs(Core.deleted) do
+        if not Core.isDeleted(id) then
+            Core.deleted[id] = nil
+            Core.points[id] = point
+        end
+    end
+    invalidate()
 end
 
 -- ---------------------------------------------------------------------------
@@ -161,8 +298,10 @@ end
 --- the file has been read again. A rename taken out of the file goes back to
 --- the registered label.
 function Core.reapplyLabels()
-    for id, point in pairs(Core.points) do
-        point.label = Core.labelOverride(id) or point.shippedLabel
+    for _, registry in ipairs({Core.points, Core.deleted}) do
+        for id, point in pairs(registry) do
+            point.label = Core.labelOverride(id) or point.shippedLabel
+        end
     end
     invalidate()
 end
@@ -177,16 +316,16 @@ end
 --
 -- Returns the point, or nil and a translation key saying why not.
 function Core.renamePoint(id, label)
-    local point = Core.points[id]
+    local point = Core.points[id] or Core.deleted[id]
     if not point then
-        return nil, "IGUI_PhunSpawn_NoSuchPoint"
+        return nil, "IGUI_PhunTaxi_NoSuchPoint"
     end
     if label ~= nil and type(label) ~= "string" then
-        return nil, "IGUI_PhunSpawn_BadLabel"
+        return nil, "IGUI_PhunTaxi_BadLabel"
     end
     label = label and label:gsub("^%s+", ""):gsub("%s+$", "") or ""
     if #label > Core.consts.labelMax then
-        return nil, "IGUI_PhunSpawn_LabelTooLong"
+        return nil, "IGUI_PhunTaxi_LabelTooLong"
     end
 
     local store = labelStore()
@@ -202,11 +341,38 @@ function Core.renamePoint(id, label)
     return point
 end
 
+-- Sorted on (priority, label, id). The id tail is not decoration: pairs()
+-- order is not stable, ties are routine, and without it one save would draw
+-- the same list in two different orders.
+local function sorted(registry)
+    local out = {}
+    for _, point in pairs(registry) do
+        table.insert(out, point)
+    end
+    table.sort(out, function(a, b)
+        if a.priority ~= b.priority then
+            return a.priority < b.priority
+        end
+        if a.label ~= b.label then
+            return a.label < b.label
+        end
+        return a.id < b.id
+    end)
+    return out
+end
+
 --- Every point, WITH coordinates, for the admin editor. Never for a player:
 --- this is exactly what Unlocks.payloadFor exists to withhold.
+---
+--- Deleted points too, after the rest and marked, so the editor can put them
+--- back.
 function Core.adminPayload()
     local out = {}
-    for _, point in ipairs(Core.sortedPoints()) do
+    local rows = Core.sortedPoints()
+    for _, point in ipairs(sorted(Core.deleted)) do
+        table.insert(rows, point)
+    end
+    for _, point in ipairs(rows) do
         table.insert(out, {
             id = point.id,
             label = point.label,
@@ -215,6 +381,7 @@ function Core.adminPayload()
             region = point.region,
             discovery = point.discovery,
             saved = point.saved,
+            deleted = Core.deleted[point.id] == point,
             x = point.x,
             y = point.y,
             z = point.z
@@ -239,27 +406,10 @@ function Core.buildIndexes()
     Core.regions = regions
 end
 
---- Every point, sorted for a stable picker.
---
--- Sorted on (priority, label, id). The id tail is not decoration: pairs()
--- order is not stable, ties are routine, and without it one save would draw
--- the same list in two different orders.
+--- Every point, sorted for a stable picker, on (priority, label, id).
 function Core.sortedPoints()
     Core.buildIndexes()
-    local out = {}
-    for _, point in pairs(Core.points) do
-        table.insert(out, point)
-    end
-    table.sort(out, function(a, b)
-        if a.priority ~= b.priority then
-            return a.priority < b.priority
-        end
-        if a.label ~= b.label then
-            return a.label < b.label
-        end
-        return a.id < b.id
-    end)
-    return out
+    return sorted(Core.points)
 end
 
 --- The points in one region, sorted the same way.
@@ -371,14 +521,18 @@ end
 --- missing, which is why this is all that is logged at boot.
 function Core.describeRegistry()
     Core.buildIndexes()
-    local points, regions = 0, 0
+    local points, regions, deleted = 0, 0, 0
     for _ in pairs(Core.points) do
         points = points + 1
     end
     for _ in pairs(Core.regions) do
         regions = regions + 1
     end
-    return tostring(points) .. " point(s) across " .. tostring(regions) .. " region(s)"
+    for _ in pairs(Core.deleted) do
+        deleted = deleted + 1
+    end
+    return tostring(points) .. " point(s) across " .. tostring(regions) .. " region(s)" ..
+               (deleted > 0 and (", " .. tostring(deleted) .. " deleted") or "")
 end
 
 return Core

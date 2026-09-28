@@ -2,24 +2,26 @@
 setlocal enabledelayedexpansion
 
 rem ---------------------------------------------------------------------------
-rem PhunSpawn deploy. Called by .vscode/settings.json on every save
+rem PhunTaxi deploy. Called by .vscode/settings.json on every save
 rem (emeraldwalk.runonsave).
 rem
 rem Deploys to:
-rem   %USERPROFILE%\Zomboid\mods\PhunSpawn              - playable
-rem   %USERPROFILE%\Zomboid\mods\PhunSpawnTest          - test-id variant
-rem   %USERPROFILE%\Zomboid\Workshop\PhunSpawn          - upload staging
-rem   %USERPROFILE%\Zomboid\Workshop\PhunSpawnTest      - test upload staging
+rem   %USERPROFILE%\Zomboid\mods\PhunTaxi              - playable
+rem   %USERPROFILE%\Zomboid\mods\PhunTaxiTest          - test-id variant
+rem   %USERPROFILE%\Zomboid\Workshop\PhunTaxi          - upload staging
+rem   %USERPROFILE%\Zomboid\Workshop\PhunTaxiTest      - test upload staging
 rem ---------------------------------------------------------------------------
 
-set MODS=PhunSpawn
+set MODS=PhunTaxi
 
-set SRC=%~dp0
+rem This file lives in scripts, one below the repo root, and every path
+rem below is relative to the root.
+for %%I in ("%~dp0..") do set "SRC=%%~fI\"
 set MODDIR=%USERPROFILE%\Zomboid\mods
-set WS=%USERPROFILE%\Zomboid\Workshop\PhunSpawn
-set WSTEST=%USERPROFILE%\Zomboid\Workshop\PhunSpawnTest
+set WS=%USERPROFILE%\Zomboid\Workshop\PhunTaxi
+set WSTEST=%USERPROFILE%\Zomboid\Workshop\PhunTaxiTest
 
-echo [PhunSpawn] Deploying to %MODDIR%
+echo [PhunTaxi] Deploying to %MODDIR%
 
 rem --- Live mods -------------------------------------------------------------
 rem xclude applies HERE, and this is the only line where it can. The Workshop
@@ -32,7 +34,7 @@ rem them specific. A bare extension is fine; a bare folder name is not.
 for %%M in (%MODS%) do (
     rmdir /S /Q "%MODDIR%\%%M" 2>nul
     xcopy "%SRC%Contents\mods\%%M" "%MODDIR%\%%M" /Y /I /E /F /Q /EXCLUDE:%SRC%xclude >nul
-    if errorlevel 1 echo [PhunSpawn] FAILED copying %%M
+    if errorlevel 1 echo [PhunTaxi] FAILED copying %%M
 )
 
 rem --- Test-id variants ------------------------------------------------------
@@ -54,7 +56,11 @@ for %%M in (%MODS%) do (
 rem --- Workshop staging, live ------------------------------------------------
 rmdir /S /Q "%WS%" 2>nul
 xcopy "%SRC%" "%WS%" /Y /I /E /F /Q /EXCLUDE:%SRC%xclude >nul
+rem xclude drops every .cmd and .pl by extension, which leaves scripts\ behind
+rem as an empty folder. It cannot be named in xclude itself: the substring
+rem match would take media\scripts\, the item and sound definitions, with it.
 rmdir /S /Q "%WS%\Tests" 2>nul
+rmdir /S /Q "%WS%\scripts" 2>nul
 rmdir /S /Q "%WS%\Contents" 2>nul
 for %%M in (%MODS%) do (
     xcopy "%MODDIR%\%%M" "%WS%\Contents\mods\%%M" /Y /I /E /F /Q >nul
@@ -66,6 +72,7 @@ rem workshop.txt / preview.png come from Tests\.
 rmdir /S /Q "%WSTEST%" 2>nul
 xcopy "%SRC%" "%WSTEST%" /Y /I /E /F /Q /EXCLUDE:%SRC%xclude >nul
 rmdir /S /Q "%WSTEST%\Tests" 2>nul
+rmdir /S /Q "%WSTEST%\scripts" 2>nul
 rmdir /S /Q "%WSTEST%\Contents" 2>nul
 for %%M in (%MODS%) do (
     xcopy "%MODDIR%\%%MTest" "%WSTEST%\Contents\mods\%%M" /Y /I /E /F /Q >nul
@@ -73,5 +80,5 @@ for %%M in (%MODS%) do (
 copy /Y "%SRC%Tests\workshop.txt" "%WSTEST%\workshop.txt" >nul
 if exist "%SRC%Tests\preview.png" copy /Y "%SRC%Tests\preview.png" "%WSTEST%\preview.png" >nul
 
-echo [PhunSpawn] Done.
+echo [PhunTaxi] Done.
 endlocal

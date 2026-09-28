@@ -10,19 +10,19 @@ local ROOT = os.getenv("PS_ROOT") or "."
 local stubs = dofile(ROOT .. "/Tests/lua/stubs.lua")
 stubs.install(ROOT)
 
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-require "PhunSpawn/phones"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
 Core.logLn = function()
 end
 Core.debugLn = function()
 end
 
-local Unlocks = require "PhunSpawn/unlocks"
-local PhoneSwap = require "PhunSpawn/phone_swap"
-local Store = require "PhunSpawn/store"
-local Commands = require "PhunSpawn/server_commands"
+local Unlocks = require "PhunTaxi/unlocks"
+local PhoneSwap = require "PhunTaxi/phone_swap"
+local Store = require "PhunTaxi/store"
+local Commands = require "PhunTaxi/server_commands"
 local json = require "PhunInteriors/json"
 local report = stubs.reporter()
 local check = report.check
@@ -31,11 +31,12 @@ local FILE = Core.consts.storeFile
 
 local function wipe()
     Core.points = {}
+    Core.deleted = {}
     Core.regions = {}
     Core.unlocked = {}
     Core.indexesBuilt = false
     Core.data = {}
-    Core.saved = {points = {}, phones = {}, labels = {}}
+    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}}
     Store.unreadable = false
     Core.settings.PhoneChance = 50
     Core.settings.PhoneDistance = 500
@@ -84,11 +85,11 @@ check("with the point in it", fileDoc().points["phun.spawn.custom.1234_5678_0"].
 check("and a version", fileDoc().version, 1)
 
 point, why = Store.addPoint(1234, 5678, 0, "Again")
-check("a second point on the square is refused", why, "IGUI_PhunSpawn_PointHere")
+check("a second point on the square is refused", why, "IGUI_PhunTaxi_PointHere")
 point, why = Store.addPoint(1, 1, 0, "   ")
-check("a blank name is refused", why, "IGUI_PhunSpawn_BadLabel")
+check("a blank name is refused", why, "IGUI_PhunTaxi_BadLabel")
 point, why = Store.addPoint(1, 1, 0, string.rep("x", Core.consts.labelMax + 1))
-check("an over long name is refused", why, "IGUI_PhunSpawn_LabelTooLong")
+check("an over long name is refused", why, "IGUI_PhunTaxi_LabelTooLong")
 
 Store.rename("phun.spawn.test.home", "Safehouse")
 check("a rename is in the file", fileDoc().labels["phun.spawn.test.home"], "Safehouse")
@@ -105,9 +106,9 @@ check("the rename survived the wipe too", Core.points["phun.spawn.test.home"].la
 -- Kind, and a start point reaching a new character.
 -- ---------------------------------------------------------------------------
 point, why = Store.setKind("phun.spawn.custom.1234_5678_0", Core.discovery.used)
-check("used is refused for a point with no phone", why, "IGUI_PhunSpawn_BadKind")
+check("used is refused for a point with no phone", why, "IGUI_PhunTaxi_BadKind")
 point, why = Store.setKind("phun.spawn.test.home", Core.discovery.explore)
-check("a shipped point's kind is not the file's to change", why, "IGUI_PhunSpawn_NotSavedPoint")
+check("a shipped point's kind is not the file's to change", why, "IGUI_PhunTaxi_NotSavedPoint")
 point = Store.setKind("phun.spawn.custom.1234_5678_0", Core.discovery.start)
 check("start is taken", point and point.discovery, "start")
 check("and written", fileDoc().points["phun.spawn.custom.1234_5678_0"].discovery, "start")
@@ -135,7 +136,7 @@ check("of the registry", Core.points["phun.spawn.custom.1234_5678_0"], nil)
 check("and the file", fileDoc().points["phun.spawn.custom.1234_5678_0"], nil)
 check("with its rename", fileDoc().labels["phun.spawn.custom.1234_5678_0"], nil)
 point, why = Store.removePoint("phun.spawn.custom.1234_5678_0")
-check("removing twice is refused", why, "IGUI_PhunSpawn_NotSavedPoint")
+check("removing twice is refused", why, "IGUI_PhunTaxi_NotSavedPoint")
 
 -- ---------------------------------------------------------------------------
 -- A file that will not write: the change is undone and says so.
@@ -145,12 +146,12 @@ getFileWriter = function()
     return nil
 end
 point, why = Store.addPoint(50, 60, 0, "Nowhere")
-check("an unwritable file refuses the add", why, "IGUI_PhunSpawn_NotSaved")
+check("an unwritable file refuses the add", why, "IGUI_PhunTaxi_NotSaved")
 check("and it is not registered", Core.points["phun.spawn.custom.50_60_0"], nil)
 check("or left in memory to be written later", Core.saved.points["phun.spawn.custom.50_60_0"], nil)
 local before = Core.points["phun.spawn.test.home"].label
 point, why = Store.rename("phun.spawn.test.home", "Something")
-check("an unwritable file refuses a rename", why, "IGUI_PhunSpawn_NotSaved")
+check("an unwritable file refuses a rename", why, "IGUI_PhunTaxi_NotSaved")
 check("and the name is put back", Core.points["phun.spawn.test.home"].label, before)
 getFileWriter = realWriter
 
@@ -161,6 +162,8 @@ stubs.files[FILE] = [[{
   "points": {
     "ok.one": {"label": "Fine", "x": 1, "y": 2},
     "bad.kind": {"label": "Typo", "x": 1, "y": 2, "discovery": "strat"},
+    "ok.phone": {"label": "Diner", "x": 5, "y": 6, "discovery": "start", "phone": "S"},
+    "bad.phone": {"label": "Wall", "x": 5, "y": 6, "phone": "up"},
     "bad.label": {"x": 1, "y": 2},
     "bad.xy": {"label": "No square"}
   },
@@ -172,10 +175,12 @@ stubs.files[FILE] = [[{
 }]]
 wipe()
 local problems = Store.load()
-check("each bad entry is reported", #problems, 5)
+check("each bad entry is reported", #problems, 6)
 check("a good point is read", Core.saved.points["ok.one"] ~= nil, true)
 check("defaulting to explore", Core.saved.points["ok.one"].discovery, "explore")
 check("a mistyped kind is left out, not guessed", Core.saved.points["bad.kind"], nil)
+check("a point can ask for a phone", Core.saved.points["ok.phone"] and Core.saved.points["ok.phone"].phone, "S")
+check("a bad phone facing is left out", Core.saved.points["bad.phone"], nil)
 check("a phone is keyed by its own square", Core.saved.phones["100_200_0"] ~= nil, true)
 check("not what the file called it", Core.saved.phones["whatever"], nil)
 check("a bad facing is left out", Core.saved.phones["bad.facing"], nil)
@@ -191,7 +196,7 @@ boot(shipped)
 check("a broken file still boots", Core.points["phun.spawn.test.home"] ~= nil, true)
 check("and is marked unreadable", Store.unreadable, true)
 point, why = Store.addPoint(70, 80, 0, "Later")
-check("changes are refused until it reads", why, "IGUI_PhunSpawn_NotSaved")
+check("changes are refused until it reads", why, "IGUI_PhunTaxi_NotSaved")
 check("and the file is untouched", stubs.files[FILE], broken)
 
 -- ---------------------------------------------------------------------------
@@ -229,7 +234,7 @@ check("no longer saved", point and point.saved, false)
 check("out of the file", fileDoc().phones[key], nil)
 check("an ordinary phone again, so forgettable", PhoneSwap.forget(1000, 2000, 0), true)
 point, why = PhoneSwap.release(key)
-check("releasing what is not kept is refused", why, "IGUI_PhunSpawn_NotKept")
+check("releasing what is not kept is refused", why, "IGUI_PhunTaxi_NotKept")
 
 -- A phone taken out of the file by hand goes back to ordinary on the next
 -- adopt, and one added by hand is picked up.
@@ -275,7 +280,7 @@ check("or write the file", stubs.files[FILE], nil)
 
 Commands[Core.commands.adminAddPoint](boss, {x = 5, y = 6, z = 0, label = "Ours"})
 check("an admin can", Core.points["phun.spawn.custom.5_6_0"] ~= nil, true)
-check("and is told", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_PointAdded")
+check("and is told", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_PointAdded")
 check("with a fresh editor list", lastSent(Core.commands.adminPoints) ~= nil, true)
 
 local listed
@@ -305,7 +310,115 @@ Commands[Core.commands.admin](boss, {action = "reload"})
 check("a broken reload keeps what was read last", Core.points["hand.edit"] ~= nil, true)
 Commands[Core.commands.adminAddPoint](boss, {x = 9, y = 9, z = 0, label = "Blocked"})
 check("and refuses to write over the edit", stubs.files[FILE], broken)
-check("saying so", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_NotSaved")
+check("saying so", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_NotSaved")
+
+-- ---------------------------------------------------------------------------
+-- Deleting: a shipped point is tombstoned, and stays gone through a reboot
+-- and a wipe, because the code registers it again every boot.
+-- ---------------------------------------------------------------------------
+local function shippedTwo()
+    shipped()
+    Core.registerPoint("phun.spawn.test.away", {label = "Away", x = 30, y = 40, discovery = Core.discovery.start})
+    Core.registerPoint("phun.spawn.test.far", {label = "Far", x = 50, y = 60})
+end
+
+stubs.files = {}
+wipe()
+boot(shippedTwo)
+sent = {}
+local player = stubs.player("walker", 1)
+Unlocks.grant(player, "phun.spawn.test.far")
+check("a player found the far point", Unlocks.has(player, "phun.spawn.test.far"), true)
+
+Commands[Core.commands.adminRemovePoint](nobody, {id = "phun.spawn.test.far"})
+check("a player cannot delete a point", Core.points["phun.spawn.test.far"] ~= nil, true)
+
+Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.test.far"})
+check("an admin can delete a shipped point", Core.points["phun.spawn.test.far"], nil)
+check("and is told", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_PointDeleted")
+check("the tombstone is in the file", fileDoc().deleted["phun.spawn.test.far"], true)
+check("the player no longer has it", Unlocks.has(player, "phun.spawn.test.far"), false)
+listed = nil
+for _, row in ipairs(lastSent(Core.commands.adminPoints).points) do
+    if row.id == "phun.spawn.test.far" then
+        listed = row
+    end
+end
+check("the editor still lists it, as deleted", listed and listed.deleted, true)
+point, why = Store.deletePoint("phun.spawn.test.far")
+check("deleting twice is refused", why, "IGUI_PhunTaxi_AlreadyDeleted")
+Store.restorePoint("phun.spawn.test.far")
+check("an unlock survives delete and restore", Unlocks.has(player, "phun.spawn.test.far"), true)
+Store.deletePoint("phun.spawn.test.far")
+
+-- A reboot and a wipe: the code registers it again, and the tombstone holds.
+wipe()
+boot(shippedTwo)
+check("a wipe keeps it deleted", Core.points["phun.spawn.test.far"], nil)
+check("in the graveyard", Core.deleted["phun.spawn.test.far"] ~= nil, true)
+check("and the rest are there", Core.points["phun.spawn.test.away"] ~= nil, true)
+
+-- Only the last start point is refused.
+Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.test.away"})
+check("a start point can go while another is left", Core.points["phun.spawn.test.away"], nil)
+Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.test.home"})
+check("the last start point cannot", Core.points["phun.spawn.test.home"] ~= nil, true)
+check("saying so", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_LastStart")
+
+-- A phone is released or taken down, not deleted.
+Core.registerPoint("phun.spawn.phone.1_2_0", {label = "Phone", x = 2, y = 2, discovery = Core.discovery.used})
+point, why = Store.deletePoint("phun.spawn.phone.1_2_0")
+check("a phone cannot be deleted", why, "IGUI_PhunTaxi_CannotDeletePhone")
+
+-- Restore brings it back, with the rename it had.
+Store.rename("phun.spawn.test.away", "Over there")
+Commands[Core.commands.adminRestorePoint](boss, {id = "phun.spawn.test.away"})
+check("an admin can restore a point", Core.points["phun.spawn.test.away"] ~= nil, true)
+check("with its rename", Core.points["phun.spawn.test.away"].label, "Over there")
+check("and the tombstone leaves the file", fileDoc().deleted["phun.spawn.test.away"], nil)
+Commands[Core.commands.adminRestorePoint](boss, {id = "phun.spawn.test.away"})
+check("restoring twice is refused", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_NotDeleted")
+
+-- A point added on a square is removed from the file, not tombstoned, so
+-- the next point added there is not caught by it.
+Commands[Core.commands.adminAddPoint](boss, {x = 70, y = 80, z = 0, label = "Here"})
+Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.custom.70_80_0"})
+check("an added point is removed", Core.points["phun.spawn.custom.70_80_0"], nil)
+check("from the file", fileDoc().points["phun.spawn.custom.70_80_0"], nil)
+check("with no tombstone", fileDoc().deleted["phun.spawn.custom.70_80_0"], nil)
+check("saying removed", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_PointRemoved")
+
+-- A file entry standing in for a shipped point is tombstoned, and kept.
+doc = fileDoc()
+doc.points["phun.spawn.test.far"] = {label = "Far, fixed", x = 51, y = 61}
+stubs.files[FILE] = json.encodePretty(doc)
+Commands[Core.commands.admin](boss, {action = "reload"})
+Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.test.far"})
+check("a file entry over a shipped point is deleted", Core.points["phun.spawn.test.far"], nil)
+check("and kept in the file", fileDoc().points["phun.spawn.test.far"] ~= nil, true)
+Commands[Core.commands.adminRestorePoint](boss, {id = "phun.spawn.test.far"})
+check("so restore brings the fixed one back", Core.points["phun.spawn.test.far"].x, 51)
+
+-- A reload of a hand edit that takes a tombstone out, or puts one in.
+doc = fileDoc()
+doc.deleted = {["phun.spawn.test.away"] = true}
+stubs.files[FILE] = json.encodePretty(doc)
+Commands[Core.commands.admin](boss, {action = "reload"})
+check("reload applies a tombstone added by hand", Core.points["phun.spawn.test.away"], nil)
+doc.deleted = {}
+stubs.files[FILE] = json.encodePretty(doc)
+Commands[Core.commands.admin](boss, {action = "reload"})
+check("and lifts one taken out", Core.points["phun.spawn.test.away"] ~= nil, true)
+
+-- A file that will not write puts the point back.
+getFileWriter = function()
+    return nil
+end
+point, why = Store.deletePoint("phun.spawn.test.away")
+check("an unwritable file refuses a delete", why, "IGUI_PhunTaxi_NotSaved")
+check("and the point is put back", Core.points["phun.spawn.test.away"] ~= nil, true)
+check("with no tombstone left in memory", Core.saved.deleted["phun.spawn.test.away"], nil)
+getFileWriter = realWriter
 
 -- ---------------------------------------------------------------------------
 -- The written file is one a person can read and diff.

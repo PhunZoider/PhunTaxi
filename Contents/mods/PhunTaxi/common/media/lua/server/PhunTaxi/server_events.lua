@@ -1,17 +1,17 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/tools"
-require "PhunSpawn/interiors"
-require "PhunSpawn/phone_guards"
-require "PhunSpawn/defaults"
-local Core = PhunSpawn
-local Commands = require "PhunSpawn/server_commands"
-local Unlocks = require "PhunSpawn/unlocks"
-local PhoneSwap = require "PhunSpawn/phone_swap"
-local Store = require "PhunSpawn/store"
-local Arrival = require "PhunSpawn/arrival"
+require "PhunTaxi/points"
+require "PhunTaxi/tools"
+require "PhunTaxi/interiors"
+require "PhunTaxi/phone_guards"
+require "PhunTaxi/defaults"
+local Core = PhunTaxi
+local Commands = require "PhunTaxi/server_commands"
+local Unlocks = require "PhunTaxi/unlocks"
+local PhoneSwap = require "PhunTaxi/phone_swap"
+local Store = require "PhunTaxi/store"
+local Arrival = require "PhunTaxi/arrival"
 
 local started = false
 

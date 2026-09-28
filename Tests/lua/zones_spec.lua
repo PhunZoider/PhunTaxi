@@ -26,7 +26,7 @@ function require(path)
     end
     return stubRequire(path)
 end
-local zonesFile = ROOT .. "/Contents/mods/PhunSpawn/common/media/lua/shared/PhunSpawn/zones.lua"
+local zonesFile = ROOT .. "/Contents/mods/PhunTaxi/common/media/lua/shared/PhunTaxi/zones.lua"
 
 local function load(mods)
     active = mods
@@ -39,17 +39,17 @@ end
 -- Without PhunZones: nothing is asked of it.
 -- ---------------------------------------------------------------------------
 data = load({})
-check("no PhunZones, no zone", data.PhunSpawn_TaxiGarage, nil)
+check("no PhunZones, no zone", data.PhunTaxi_TaxiGarage, nil)
 
 -- ---------------------------------------------------------------------------
 -- With it, under either id.
 -- ---------------------------------------------------------------------------
 for _, id in ipairs({"phunzones2", "phunzones2test"}) do
     data = load({[id] = true})
-    check(id .. " adds the zone", data.PhunSpawn_TaxiGarage ~= nil, true)
+    check(id .. " adds the zone", data.PhunTaxi_TaxiGarage ~= nil, true)
 end
 
-local zone = load({phunzones2 = true}).PhunSpawn_TaxiGarage
+local zone = load({phunzones2 = true}).PhunTaxi_TaxiGarage
 check("title", zone.title, "Taxi Garage")
 check("zeds removed", zone.zeds, "remove")
 for _, flag in ipairs({"nosafehouse", "nobuilding", "noplacing", "nopickup", "noscrap", "nodestruction"}) do
@@ -68,7 +68,7 @@ check("y2 is the cell's last row", r[4], 50 * 256 - 1)
 
 -- The same ground the map's NoPowerOrWater zone covers, which is the other
 -- place these numbers are written down.
-local objects = io.open(ROOT .. "/Contents/mods/PhunSpawn/common/media/maps/phunspawn/objects.lua"):read("*a")
+local objects = io.open(ROOT .. "/Contents/mods/PhunTaxi/common/media/maps/phuntaxi/objects.lua"):read("*a")
 local ox, oy, ow, oh = objects:match("x = (%d+), y = (%d+), z = %d+, width = (%d+), height = (%d+)")
 check("matches objects.lua x", r[1], tonumber(ox))
 check("matches objects.lua y", r[2], tonumber(oy))

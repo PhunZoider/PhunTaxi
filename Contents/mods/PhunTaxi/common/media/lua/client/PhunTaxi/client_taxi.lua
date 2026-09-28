@@ -1,9 +1,9 @@
 if isServer() then
     return
 end
-require "PhunSpawn/taxi"
-require "PhunSpawn/client_main"
-local Core = PhunSpawn
+require "PhunTaxi/taxi"
+require "PhunTaxi/client_main"
+local Core = PhunTaxi
 local Client = Core.client
 
 -- ---------------------------------------------------------------------------
@@ -117,7 +117,7 @@ local function onDraw()
     local y = isoToScreenY(index, anchor.x, anchor.y, anchor.z + LIFT)
     -- A slow pulse, so it reads as a prompt and not as part of the scenery.
     local alpha = 0.75 + 0.25 * math.sin(getTimestampMs() / 300)
-    local text = getText("IGUI_PhunSpawn_TaxiOnTheHouse")
+    local text = getText("IGUI_PhunTaxi_TaxiOnTheHouse")
     local tm = getTextManager()
     -- A drop shadow, as vanilla's own floating debug text has, so it reads
     -- over a pale floor.

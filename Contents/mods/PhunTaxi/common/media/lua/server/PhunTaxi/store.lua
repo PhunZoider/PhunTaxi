@@ -1,9 +1,9 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/phones"
-local Core = PhunSpawn
+require "PhunTaxi/points"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
 -- PhunInteriors' copy, which is PhunMart2's. PhunInteriors is a hard
 -- dependency, so this is a require rather than a third vendored copy.
 local json = require "PhunInteriors/json"
@@ -13,13 +13,13 @@ Core.modules.store = Store
 -- ---------------------------------------------------------------------------
 -- The store file: what an admin set up, kept outside the save.
 --
--- PhunSpawn.json, in the game's Lua folder beside PhunInteriors.json. That
+-- PhunTaxi.json, in the game's Lua folder beside PhunInteriors.json. That
 -- folder is not part of the world, so a wipe leaves it alone, and that is the
 -- whole reason for it: an admin walks the map adding points and keeping pay
 -- phones once, and the next world starts with them. Global ModData is in the
 -- save and goes with it.
 --
--- Three things, each keyed so a hand edit is one line to find:
+-- Four things, each keyed so a hand edit is one line to find:
 --
 --   points  id -> {label, x, y, z, region, discovery, priority}
 --           Points an admin added. `x, y, z` is where the character wakes
@@ -35,6 +35,11 @@ Core.modules.store = Store
 --           in a new world, one of ours is put there. See phone_swap.lua.
 --   labels  id -> label
 --           Renames, of any point, shipped or not.
+--   deleted id -> true
+--           Tombstones. A point of that id, shipped, a third party's or
+--           one in this file, registers into Core.deleted instead of the
+--           registry. Taking the line out puts it back. See
+--           Core.deletePoint.
 --
 -- SERVER SIDE ONLY: getFileReader resolves against the Lua folder of the
 -- machine running it, so a client would read its own. The rules for the two
@@ -45,7 +50,7 @@ Core.modules.store = Store
 -- Written on every change an admin makes in game, so there is no Save button
 -- to forget. The flip side: a hand edit made while the server runs is
 -- overwritten by the next change made in game, unless it is read in first
--- with PhunSpawn.admin("reload").
+-- with PhunTaxi.admin("reload").
 -- ---------------------------------------------------------------------------
 
 Store.FILE = Core.consts.storeFile
@@ -78,14 +83,14 @@ end
 --- so a label cannot get into the file by one door that the other refuses.
 function Store.cleanLabel(label)
     if type(label) ~= "string" then
-        return nil, "IGUI_PhunSpawn_BadLabel"
+        return nil, "IGUI_PhunTaxi_BadLabel"
     end
     label = label:gsub("^%s+", ""):gsub("%s+$", "")
     if label == "" then
-        return nil, "IGUI_PhunSpawn_BadLabel"
+        return nil, "IGUI_PhunTaxi_BadLabel"
     end
     if #label > Core.consts.labelMax then
-        return nil, "IGUI_PhunSpawn_LabelTooLong"
+        return nil, "IGUI_PhunTaxi_LabelTooLong"
     end
     return label
 end
@@ -97,14 +102,15 @@ local function whole(value)
     return math.floor(value)
 end
 
---- A decoded file, checked. Returns clean {points, phones, labels} and a
---- list of complaints. Never throws: an entry that is wrong is left out and
---- said so, and the rest of the file still counts.
+--- A decoded file, checked. Returns clean {points, phones, labels, deleted}
+--- and a list of complaints. Never throws: an entry that is wrong is left
+--- out and said so, and the rest of the file still counts.
 function Store.sanitise(doc)
     local out = {
         points = {},
         phones = {},
-        labels = {}
+        labels = {},
+        deleted = {}
     }
     local problems = {}
     if type(doc) ~= "table" then
@@ -128,6 +134,11 @@ function Store.sanitise(doc)
             -- one nobody starts with.
             table.insert(problems, "point " .. id .. " has discovery '" .. tostring(discovery) ..
                 "'; it must be start, explore or granted")
+        elseif def.phone ~= nil and not FACINGS[def.phone] then
+            -- Left out for the same reason: a point meant to have a phone
+            -- is a taxi stop, and one quietly without it is not.
+            table.insert(problems, "point " .. id .. " has phone '" .. tostring(def.phone) ..
+                "'; it must be E, S, W or N")
         else
             out.points[id] = {
                 label = label,
@@ -136,7 +147,8 @@ function Store.sanitise(doc)
                 z = whole(def.z) or 0,
                 region = type(def.region) == "string" and def.region ~= "" and def.region or nil,
                 discovery = discovery,
-                priority = type(def.priority) == "number" and def.priority or nil
+                priority = type(def.priority) == "number" and def.priority or nil,
+                phone = def.phone
             }
         end
     end
@@ -169,6 +181,16 @@ function Store.sanitise(doc)
             table.insert(problems, "the rename of " .. tostring(id) .. " is not a usable label")
         else
             out.labels[id] = clean
+        end
+    end
+
+    for id, flag in pairs(type(doc.deleted) == "table" and doc.deleted or {}) do
+        -- Only true. `false` is somebody undoing a tombstone by hand, which
+        -- is what taking the line out does, so it is dropped quietly.
+        if type(id) ~= "string" or id == "" or (flag ~= true and flag ~= false) then
+            table.insert(problems, "the tombstone " .. tostring(id) .. " is not id: true")
+        elseif flag then
+            out.deleted[id] = true
         end
     end
 
@@ -209,7 +231,8 @@ function Store.load()
     Core.saved = {
         points = {},
         phones = {},
-        labels = {}
+        labels = {},
+        deleted = {}
     }
     Store.unreadable = false
     local text = readAll(Store.FILE)
@@ -231,8 +254,9 @@ function Store.load()
     for _, complaint in ipairs(problems) do
         Core.logLn(Store.FILE .. ": " .. complaint)
     end
-    Core.logLn(string.format("%s: %d point(s), %d phone(s), %d rename(s)%s", Store.FILE, count(clean.points),
-        count(clean.phones), count(clean.labels), #problems > 0 and (", " .. #problems .. " ignored") or ""))
+    Core.logLn(string.format("%s: %d point(s), %d phone(s), %d rename(s), %d deleted%s", Store.FILE,
+        count(clean.points), count(clean.phones), count(clean.labels), count(clean.deleted),
+        #problems > 0 and (", " .. #problems .. " ignored") or ""))
     return problems
 end
 
@@ -242,7 +266,8 @@ function Store.document()
         version = Store.VERSION,
         points = Core.saved.points,
         phones = Core.saved.phones,
-        labels = Core.saved.labels
+        labels = Core.saved.labels,
+        deleted = Core.saved.deleted
     }
 end
 
@@ -291,6 +316,7 @@ local function register(id, def)
         region = def.region,
         discovery = def.discovery,
         priority = def.priority,
+        phone = def.phone,
         saved = true
     })
 end
@@ -311,7 +337,7 @@ end
 function Store.addPoint(x, y, z, label, region)
     x, y, z = whole(x), whole(y), whole(z) or 0
     if not x or not y then
-        return nil, "IGUI_PhunSpawn_NoSuchPoint"
+        return nil, "IGUI_PhunTaxi_NoSuchPoint"
     end
     local clean, why = Store.cleanLabel(label)
     if not clean then
@@ -319,7 +345,7 @@ function Store.addPoint(x, y, z, label, region)
     end
     local id = Store.customId(x, y, z)
     if Core.saved.points[id] then
-        return nil, "IGUI_PhunSpawn_PointHere"
+        return nil, "IGUI_PhunTaxi_PointHere"
     end
     local def = {
         label = clean,
@@ -333,7 +359,7 @@ function Store.addPoint(x, y, z, label, region)
     if not commit(function()
         Core.saved.points[id] = nil
     end) then
-        return nil, "IGUI_PhunSpawn_NotSaved"
+        return nil, "IGUI_PhunTaxi_NotSaved"
     end
     return register(id, def)
 end
@@ -345,36 +371,103 @@ end
 function Store.removePoint(id)
     local def = Core.saved.points[id]
     if not def then
-        return nil, "IGUI_PhunSpawn_NotSavedPoint"
+        return nil, "IGUI_PhunTaxi_NotSavedPoint"
     end
-    local label = Core.saved.labels[id]
+    local label, tombstone = Core.saved.labels[id], Core.saved.deleted[id]
     Core.saved.points[id] = nil
     Core.saved.labels[id] = nil
+    Core.saved.deleted[id] = nil
     if not commit(function()
         Core.saved.points[id] = def
         Core.saved.labels[id] = label
+        Core.saved.deleted[id] = tombstone
     end) then
-        return nil, "IGUI_PhunSpawn_NotSaved"
+        return nil, "IGUI_PhunTaxi_NotSaved"
     end
     Core.removePoint(id)
     return true
+end
+
+--- Tombstone a point and save it. Core.deletePoint's rules and returns, plus
+--- IGUI_PhunTaxi_NotSaved when the file would not write, in which case the
+--- point is put back.
+function Store.deletePoint(id)
+    local point, why = Core.deletePoint(id)
+    if not point then
+        return nil, why
+    end
+    -- The undo sets the tombstone back directly rather than through
+    -- Core.restorePoint or Core.deletePoint, whose refusals are for an
+    -- admin's request and not for putting things as they were.
+    if not commit(function()
+        Core.saved.deleted[id] = nil
+        Core.reapplyTombstones()
+    end) then
+        return nil, "IGUI_PhunTaxi_NotSaved"
+    end
+    return point
+end
+
+--- Take a tombstone off and save it.
+function Store.restorePoint(id)
+    local point, why = Core.restorePoint(id)
+    if not point then
+        return nil, why
+    end
+    if not commit(function()
+        Core.saved.deleted[id] = true
+        Core.reapplyTombstones()
+    end) then
+        return nil, "IGUI_PhunTaxi_NotSaved"
+    end
+    return point
+end
+
+--- "Take this point out", whatever it is. A point an admin added on a
+--- square goes from the file for good, since nothing else would register it
+--- again and a tombstone would only be left behind to catch the next point
+--- added there. Anything else is tombstoned: shipped points, a third
+--- party's, and a file entry standing in for one of those, which Restore
+--- brings back as it was.
+--- @return the point, or nil and a translation key; and whether it was a
+---         tombstone
+function Store.takeOut(id)
+    local point = Core.points[id]
+    local custom = type(id) == "string" and id:sub(1, #Core.consts.customPrefix) == Core.consts.customPrefix
+    if point and custom and Core.saved.points[id] then
+        -- Core.deletePoint's rule, which removing from the file would
+        -- otherwise walk round.
+        if Core.isLastStart(id) then
+            return nil, "IGUI_PhunTaxi_LastStart"
+        end
+        local ok, why = Store.removePoint(id)
+        if not ok then
+            return nil, why
+        end
+        return point, false
+    end
+    local deleted, why = Store.deletePoint(id)
+    if not deleted then
+        return nil, why
+    end
+    return deleted, true
 end
 
 --- Change how a point in the file is found.
 function Store.setKind(id, discovery)
     local def = Core.saved.points[id]
     if not def then
-        return nil, "IGUI_PhunSpawn_NotSavedPoint"
+        return nil, "IGUI_PhunTaxi_NotSavedPoint"
     end
     if not KINDS[discovery] then
-        return nil, "IGUI_PhunSpawn_BadKind"
+        return nil, "IGUI_PhunTaxi_BadKind"
     end
     local was = def.discovery
     def.discovery = discovery
     if not commit(function()
         def.discovery = was
     end) then
-        return nil, "IGUI_PhunSpawn_NotSaved"
+        return nil, "IGUI_PhunTaxi_NotSaved"
     end
     return register(id, def)
 end
@@ -408,7 +501,7 @@ function Store.releasePhone(key)
 end
 
 --- Rename a point and save it. Core.renamePoint's rules and returns, plus
---- IGUI_PhunSpawn_NotSaved when the file would not write, in which case the
+--- IGUI_PhunTaxi_NotSaved when the file would not write, in which case the
 --- old name is put back.
 function Store.rename(id, label)
     local was = Core.saved.labels[id]
@@ -420,7 +513,7 @@ function Store.rename(id, label)
         Core.saved.labels[id] = was
         point.label = was or point.shippedLabel
     end) then
-        return nil, "IGUI_PhunSpawn_NotSaved"
+        return nil, "IGUI_PhunTaxi_NotSaved"
     end
     return point
 end
@@ -428,8 +521,8 @@ end
 --- Read the file again, for a hand edit made while the server runs.
 ---
 --- Points from the old read are taken out and the new ones registered, and
---- every label is put back in line. Phones are phone_swap's to adopt; the
---- caller does that after.
+--- every tombstone and label is put back in line. Phones are phone_swap's to
+--- adopt; the caller does that after.
 --- @return a list of complaints
 function Store.reload()
     local previous = Core.saved
@@ -444,6 +537,7 @@ function Store.reload()
         Core.saved = previous
     end
     Store.registerAll()
+    Core.reapplyTombstones()
     Core.reapplyLabels()
     return problems
 end

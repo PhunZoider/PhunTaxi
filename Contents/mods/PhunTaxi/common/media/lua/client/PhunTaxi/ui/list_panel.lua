@@ -21,8 +21,8 @@ end
 -- ---------------------------------------------------------------------------
 
 require "ISUI/ISPanel"
-local Core = PhunSpawn
-local tools = require "PhunSpawn/ui/ui_utils"
+local Core = PhunTaxi
+local tools = require "PhunTaxi/ui/ui_utils"
 
 local FONT_HGT_SMALL = tools.FONT_HGT_SMALL
 local FONT_HGT_MEDIUM = tools.FONT_HGT_MEDIUM
@@ -38,7 +38,7 @@ local SCROLLBAR_W = 13
 -- stacked on top of each other while following a single shop down to a price.
 -- They are now views inside one tabbed shell (see ui/admin/admin_shell.lua),
 -- so this owns the list and its controls and nothing about window chrome.
-local ListPanel = ISPanel:derive("PhunSpawnListPanel")
+local ListPanel = ISPanel:derive("PhunTaxiListPanel")
 
 -- Filter tab states. Shared because prerender assigns them every frame.
 local TAB_ON = {r = 0.3, g = 0.7, b = 0.35, a = 0.4}
@@ -162,8 +162,8 @@ function ListPanel:createChildren()
     -- its list is a fixed handful of rows: a search box over six of them is one
     -- more control to read past for no gain.
     if not self._noFilter then
-        local filterLblW = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunSpawn_Lbl_Filter")) + 8
-        local filterLbl = ISLabel:new(PAD, PAD, BUTTON_HGT, getText("IGUI_PhunSpawn_Lbl_Filter"), 0.8, 0.8, 0.8, 1, UIFont.Small, true)
+        local filterLblW = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunTaxi_Lbl_Filter")) + 8
+        local filterLbl = ISLabel:new(PAD, PAD, BUTTON_HGT, getText("IGUI_PhunTaxi_Lbl_Filter"), 0.8, 0.8, 0.8, 1, UIFont.Small, true)
         filterLbl:initialise()
         self._buttonBar:addChild(filterLbl)
         self._filterLabel = filterLbl
@@ -184,18 +184,18 @@ function ListPanel:createChildren()
         local tick = ISTickBox:new(0, PAD, BUTTON_HGT, BUTTON_HGT, "")
         tick:initialise()
         tick:instantiate()
-        tick:addOption(getText("IGUI_PhunSpawn_Lbl_OnlyChanged"), nil)
+        tick:addOption(getText("IGUI_PhunTaxi_Lbl_OnlyChanged"), nil)
         tick:setSelected(1, false)
         -- The stripe colours mean nothing on their own, and this is the only
         -- control that sits next to them.
-        tick.tooltip = getText("IGUI_PhunSpawn_Tip_OnlyChanged")
+        tick.tooltip = getText("IGUI_PhunTaxi_Tip_OnlyChanged")
         tick.changeOptionMethod = function()
             self:applyFilter()
         end
         tick.changeOptionTarget = self
         self._buttonBar:addChild(tick)
         self._onlyChangedTick = tick
-        self._onlyChangedW = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunSpawn_Lbl_OnlyChanged")) +
+        self._onlyChangedW = getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunTaxi_Lbl_OnlyChanged")) +
                                  BUTTON_HGT + PAD
     end
 
@@ -212,9 +212,9 @@ function ListPanel:createChildren()
         local ttick = ISTickBox:new(0, PAD, BUTTON_HGT, BUTTON_HGT, "")
         ttick:initialise()
         ttick:instantiate()
-        ttick:addOption(getText("IGUI_PhunSpawn_Lbl_HideTemplates"), nil)
+        ttick:addOption(getText("IGUI_PhunTaxi_Lbl_HideTemplates"), nil)
         ttick:setSelected(1, true)
-        ttick.tooltip = getText("IGUI_PhunSpawn_Tip_HideTemplates")
+        ttick.tooltip = getText("IGUI_PhunTaxi_Tip_HideTemplates")
         ttick.changeOptionMethod = function()
             self:applyFilter()
         end
@@ -222,7 +222,7 @@ function ListPanel:createChildren()
         self._buttonBar:addChild(ttick)
         self._hideTemplatesTick = ttick
         self._hideTemplatesW = getTextManager():MeasureStringX(UIFont.Small,
-            getText("IGUI_PhunSpawn_Lbl_HideTemplates")) + BUTTON_HGT + PAD
+            getText("IGUI_PhunTaxi_Lbl_HideTemplates")) + BUTTON_HGT + PAD
     end
 
     -- The "used by" line, as a button rather than drawn text so it can be
@@ -241,7 +241,7 @@ function ListPanel:createChildren()
         refsBtn.textColor = {r = 0.8, g = 0.8, b = 0.8, a = 1}
         -- Held rather than assigned, because prerender takes it off again when
         -- the line has nothing to click through to.
-        refsBtn._tip = getText("IGUI_PhunSpawn_Tip_UsedBy")
+        refsBtn._tip = getText("IGUI_PhunTaxi_Tip_UsedBy")
         refsBtn:setVisible(false)
         self._mainPanel:addChild(refsBtn)
         self._refsBtn = refsBtn
@@ -249,8 +249,8 @@ function ListPanel:createChildren()
 
     -- Close button (right-aligned in button bar)
     local closeBtnW = math.max(math.floor(70 * FONT_SCALE),
-        getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunSpawn_Btn_Close")) + PAD * 2)
-    local closeBtn = ISButton:new(0, PAD, closeBtnW, BUTTON_HGT, getText("IGUI_PhunSpawn_Btn_Close"), self,
+        getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunTaxi_Btn_Close")) + PAD * 2)
+    local closeBtn = ISButton:new(0, PAD, closeBtnW, BUTTON_HGT, getText("IGUI_PhunTaxi_Btn_Close"), self,
         self.requestClose)
     closeBtn:initialise()
     closeBtn:instantiate()
@@ -376,7 +376,7 @@ end
 --- The first column of a definition list. Every one of them wants the same
 --- thing, so the only per-list part is the colour rule for its status markers.
 function ListPanel:addNameColumn(color)
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Name"), 0, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Name"), 0, {
         text = function(d)
             return d.name or d.key
         end,
@@ -536,9 +536,9 @@ function ListPanel:updateReferenceLine()
     if self._refsOrphan then
         -- Worth saying out loud: an unreferenced definition is dead weight, and
         -- there was previously no way to notice.
-        self._refsText = getText("IGUI_PhunSpawn_Lbl_UsedByNothing")
+        self._refsText = getText("IGUI_PhunTaxi_Lbl_UsedByNothing")
     else
-        self._refsText = getText("IGUI_PhunSpawn_Lbl_UsedBy", Core.references.summarise(found))
+        self._refsText = getText("IGUI_PhunTaxi_Lbl_UsedBy", Core.references.summarise(found))
     end
 end
 
@@ -1028,7 +1028,7 @@ function ListPanel:prerender()
     local hasSelection = self.list.selected and self.list.selected > 0
     local hasFilter = self._filterEntry ~= nil
     local filterLblW = hasFilter and
-                           (getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunSpawn_Lbl_Filter")) + 8) or 0
+                           (getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunTaxi_Lbl_Filter")) + 8) or 0
     local filterMinW = hasFilter and math.floor(150 * FONT_SCALE) or 0
 
     local actionsW = self._closeBtn.width + PAD

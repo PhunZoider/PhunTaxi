@@ -10,17 +10,17 @@ local ROOT = os.getenv("PS_ROOT") or "."
 local stubs = dofile(ROOT .. "/Tests/lua/stubs.lua")
 stubs.install(ROOT)
 
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+local Core = PhunTaxi
 Core.logLn = function()
 end
 Core.debugLn = function()
 end
 
-local Unlocks = require "PhunSpawn/unlocks"
-local Placement = require "PhunSpawn/placement"
-local Commands = require "PhunSpawn/server_commands"
+local Unlocks = require "PhunTaxi/unlocks"
+local Placement = require "PhunTaxi/placement"
+local Commands = require "PhunTaxi/server_commands"
 local report = stubs.reporter()
 local check = report.check
 
@@ -141,11 +141,11 @@ check("and that the button would work", setup.canSpawn, true)
 sent = {}
 Commands[Core.commands.spawn](ann, {id = "s.far"})
 check("an undiscovered point is refused", #sends, 0)
-check("and the refusal is said", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_NotDiscovered")
+check("and the refusal is said", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_NotDiscovered")
 
 sent = {}
 Commands[Core.commands.spawn](ann, {id = "s.nowhere"})
-check("a point that does not exist is refused", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_NoSuchPoint")
+check("a point that does not exist is refused", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_NoSuchPoint")
 
 -- PhunInteriors saying no, eg a square outside this world. The choice must
 -- survive it: using it up on a move that never happened strands a new
@@ -154,7 +154,7 @@ sent = {}
 refuseSends = true
 Commands[Core.commands.spawn](ann, {id = "s.home"})
 refuseSends = false
-check("a refused move is said", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_CannotGoThere")
+check("a refused move is said", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_CannotGoThere")
 check("and leaves the character still choosing", Placement.isPending(ann), true)
 
 sent = {}
@@ -170,7 +170,7 @@ check("and the fresh payload withdraws the button", lastSent(Core.commands.point
 sent = {}
 Commands[Core.commands.spawn](ann, {id = "s.home"})
 check("a second spawn is refused", #sends, 1)
-check("and says why", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_AlreadyPlaced")
+check("and says why", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_AlreadyPlaced")
 
 -- An established character never had the choice.
 local vic = stubs.player("vic", 400)

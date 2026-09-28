@@ -1,9 +1,9 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/tools"
-local Core = PhunSpawn
+require "PhunTaxi/points"
+require "PhunTaxi/tools"
+local Core = PhunTaxi
 local Unlocks = {}
 
 -- ---------------------------------------------------------------------------
@@ -111,8 +111,14 @@ function Unlocks.has(player, pointId)
     -- would land at the moment somebody picked it. This is the same filter
     -- Unlocks.load applies; it has to be here too, because the cache outlives
     -- a registration change and nothing invalidates it.
-    if not Core.points[pointId] then
+    local point = Core.points[pointId]
+    if not point then
         return false
+    end
+    -- A starter is known on read, like everywhere else, including one that
+    -- registered after this cache was built.
+    if point.discovery == Core.discovery.start then
+        return true
     end
     local live = Core.unlocked[key] or Unlocks.load(player)
     return live[pointId] == true
@@ -203,9 +209,12 @@ function Unlocks.payloadFor(player)
                 label = point.label,
                 region = point.region,
                 known = known,
-                -- A pay phone, so the taxi can list only phones. Only ever
-                -- true on a known point, since an unused phone is left out.
-                phone = point.discovery == Core.discovery.used or nil,
+                -- The key of the square its phone stands on, for a pay
+                -- phone or a place with one: so the taxi can list only
+                -- phones, and the client can tell a phone it knows from its
+                -- square. Only on a known point, since the key is a
+                -- position.
+                phone = known and point.phoneKey or nil,
                 x = known and point.x or nil,
                 y = known and point.y or nil,
                 z = known and point.z or nil

@@ -1,7 +1,7 @@
-name=PhunSpawn Dev
-id=phunspawntest
+name=PhunTaxi Dev
+id=phuntaxitest
 author=UburGeek
-description=Choose where you wake up. Start with a handful of spawn points and discover or build the rest as you explore
+description=Choose where you spawn. Start with a handful of spawn points and discover or build the rest as you explore
 poster=poster.png
 icon=icon.png
 versionMin=42.0.0

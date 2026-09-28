@@ -1,9 +1,9 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/tools"
-local Core = PhunSpawn
+require "PhunTaxi/points"
+require "PhunTaxi/tools"
+local Core = PhunTaxi
 local Placement = {}
 
 -- ---------------------------------------------------------------------------
@@ -21,7 +21,7 @@ local Placement = {}
 --   nil        not looked at yet
 --   "pending"  a new character who has not chosen
 --   a number   world age hours when they were placed; 0 for a character who
---              was already established when PhunSpawn first saw them
+--              was already established when PhunTaxi first saw them
 --
 -- "New" is decided ONCE, the first time the server looks, and stamped. A
 -- character who takes an hour over the choice is still choosing, and one who

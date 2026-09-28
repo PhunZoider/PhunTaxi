@@ -1,157 +1,157 @@
 VERSION = 1,
 
-option PhunSpawn.Debug
+option PhunTaxi.Debug
 {
     type = boolean,
     default = false,
-    page = PhunSpawn,
-    translation = PhunSpawn_Debug,
+    page = PhunTaxi,
+    translation = PhunTaxi_Debug,
 }
 
-option PhunSpawn.UseSpawnRoom
+option PhunTaxi.UseSpawnRoom
 {
     type = boolean,
     default = true,
-    page = PhunSpawn,
-    translation = PhunSpawn_UseSpawnRoom,
+    page = PhunTaxi,
+    translation = PhunTaxi_UseSpawnRoom,
 }
 
-option PhunSpawn.DiscoveryRadius
+option PhunTaxi.DiscoveryRadius
 {
     type = integer,
     default = 12,
     min = 1,
     max = 200,
-    page = PhunSpawn,
-    translation = PhunSpawn_DiscoveryRadius,
+    page = PhunTaxi,
+    translation = PhunTaxi_DiscoveryRadius,
 }
 
-option PhunSpawn.ShowUndiscovered
+option PhunTaxi.ShowUndiscovered
 {
     type = boolean,
     default = false,
-    page = PhunSpawn,
-    translation = PhunSpawn_ShowUndiscovered,
+    page = PhunTaxi,
+    translation = PhunTaxi_ShowUndiscovered,
 }
 
-option PhunSpawn.AllowBuiltPoints
+option PhunTaxi.AllowBuiltPoints
 {
     type = boolean,
     default = true,
-    page = PhunSpawn,
-    translation = PhunSpawn_AllowBuiltPoints,
+    page = PhunTaxi,
+    translation = PhunTaxi_AllowBuiltPoints,
 }
 
-option PhunSpawn.BuiltPointLimit
+option PhunTaxi.BuiltPointLimit
 {
     type = integer,
     default = 5,
     min = 0,
     max = 99,
-    page = PhunSpawn,
-    translation = PhunSpawn_BuiltPointLimit,
+    page = PhunTaxi,
+    translation = PhunTaxi_BuiltPointLimit,
 }
 
-option PhunSpawn.RespawnPenalty
+option PhunTaxi.RespawnPenalty
 {
     type = boolean,
     default = false,
-    page = PhunSpawn,
-    translation = PhunSpawn_RespawnPenalty,
+    page = PhunTaxi,
+    translation = PhunTaxi_RespawnPenalty,
 }
 
-option PhunSpawn.PhoneChance
+option PhunTaxi.PhoneChance
 {
     type = integer,
-    default = 50,
+    default = 90,
     min = 0,
     max = 100,
-    page = PhunSpawn,
-    translation = PhunSpawn_PhoneChance,
+    page = PhunTaxi,
+    translation = PhunTaxi_PhoneChance,
 }
 
-option PhunSpawn.PhoneDistance
+option PhunTaxi.PhoneDistance
 {
     type = integer,
     default = 500,
     min = 0,
     max = 10000,
-    page = PhunSpawn,
-    translation = PhunSpawn_PhoneDistance,
+    page = PhunTaxi,
+    translation = PhunTaxi_PhoneDistance,
 }
 
-option PhunSpawn.PhoneRing
+option PhunTaxi.PhoneRing
 {
     type = boolean,
     default = true,
-    page = PhunSpawn,
-    translation = PhunSpawn_PhoneRing,
+    page = PhunTaxi,
+    translation = PhunTaxi_PhoneRing,
 }
 
-option PhunSpawn.PhoneRingRange
+option PhunTaxi.PhoneRingRange
 {
     type = integer,
     default = 30,
     min = 1,
     max = 200,
-    page = PhunSpawn,
-    translation = PhunSpawn_PhoneRingRange,
+    page = PhunTaxi,
+    translation = PhunTaxi_PhoneRingRange,
 }
 
-option PhunSpawn.BuiltPhoneDistance
+option PhunTaxi.BuiltPhoneDistance
 {
     type = integer,
     default = 50,
     min = 0,
     max = 10000,
-    page = PhunSpawn,
-    translation = PhunSpawn_BuiltPhoneDistance,
+    page = PhunTaxi,
+    translation = PhunTaxi_BuiltPhoneDistance,
 }
 
-option PhunSpawn.PhoneDiscoverRadius
+option PhunTaxi.PhoneDiscoverRadius
 {
     type = integer,
     default = 0,
     min = 0,
     max = 30,
-    page = PhunSpawn,
-    translation = PhunSpawn_PhoneDiscoverRadius,
+    page = PhunTaxi,
+    translation = PhunTaxi_PhoneDiscoverRadius,
 }
 
-option PhunSpawn.TaxiFastTravel
+option PhunTaxi.TaxiFastTravel
 {
     type = boolean,
     default = false,
-    page = PhunSpawn,
-    translation = PhunSpawn_TaxiFastTravel,
+    page = PhunTaxi,
+    translation = PhunTaxi_TaxiFastTravel,
 }
 
-option PhunSpawn.TaxiCentsPerSquare
+option PhunTaxi.TaxiCentsPerSquare
 {
     type = integer,
     default = 1,
     min = 0,
     max = 1000,
-    page = PhunSpawn,
-    translation = PhunSpawn_TaxiCentsPerSquare,
+    page = PhunTaxi,
+    translation = PhunTaxi_TaxiCentsPerSquare,
 }
 
-option PhunSpawn.TaxiMinimumFare
+option PhunTaxi.TaxiMinimumFare
 {
     type = integer,
     default = 100,
     min = 0,
     max = 100000,
-    page = PhunSpawn,
-    translation = PhunSpawn_TaxiMinimumFare,
+    page = PhunTaxi,
+    translation = PhunTaxi_TaxiMinimumFare,
 }
 
-option PhunSpawn.TaxiZombieRadius
+option PhunTaxi.TaxiZombieRadius
 {
     type = integer,
     default = 6,
     min = 0,
     max = 50,
-    page = PhunSpawn,
-    translation = PhunSpawn_TaxiZombieRadius,
+    page = PhunTaxi,
+    translation = PhunTaxi_TaxiZombieRadius,
 }

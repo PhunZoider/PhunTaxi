@@ -1,9 +1,9 @@
 if isServer() then
     return
 end
-require "PhunSpawn/client_main"
-require "PhunSpawn/client_phone"
-local Core = PhunSpawn
+require "PhunTaxi/client_main"
+require "PhunTaxi/client_phone"
+local Core = PhunTaxi
 local Client = Core.client
 local Commands = {}
 

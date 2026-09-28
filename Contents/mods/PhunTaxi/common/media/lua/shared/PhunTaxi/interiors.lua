@@ -1,15 +1,9 @@
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- The PhunInteriors hook: a spawn ROOM.
---
--- A soft hook and never a dependency. mod.info carries no require line, every
--- call in here is guarded, and with PhunInteriors absent the mod is a spawn
--- point picker that puts you on the square. That is a real fallback rather
--- than a broken feature, which is the only kind of optional integration worth
--- having.
 --
 -- Why a room at all: a character who wakes up on a kerb wakes up in whatever
 -- is standing on it. A room is off grid, so the first thirty seconds of a new
@@ -21,8 +15,8 @@ local Core = PhunSpawn
 -- exists only once LuaEventManager.AddEvent has been called for it. If this
 -- file loads before PhunInteriors' core.lua, `Events[theirs]` is nil and the
 -- .Add throws. OnInitGlobalModData always exists, fires everywhere including
--- on a dedicated server, and by the time it fires all lua has loaded, so the
--- nil check below is decisive rather than a race.
+-- on a dedicated server, and by the time it fires all lua has loaded, so
+-- PhunInteriors' registry is there whichever mod loaded first.
 --
 -- It must NOT be OnGameStart: that is triggered only from
 -- zombie.gameStates.IngameState, which a dedicated server does not have, so a
@@ -36,7 +30,7 @@ Core.roomIds = {
     arrival = "phun.spawn.arrival"
 }
 
---- Is PhunInteriors present and far enough through booting to talk to?
+--- Can PhunInteriors take a room registration?
 function Core.interiorsReady()
     return PhunInteriors ~= nil and PhunInteriors.registerRoom ~= nil
 end
@@ -48,19 +42,20 @@ end
 -- room is entered by being a new character, which is a different question
 -- from the entitlement machinery and must not be squeezed into it.
 --
--- TODO: this ships no `locations`, because there is no map yet. A room with
--- no stamps registers and allocates nothing, which is the honest state of
--- affairs. Fill it from the map once the cells exist, reading the origins out
--- of the lotpacks with PhunInteriors' scripts/tiles.pl rather than off a grid.
+-- One slot for now, shared when full (server/arrival.lua). Any more are read
+-- out of the lotpacks with PhunInteriors' scripts/tiles.pl, not laid out on a
+-- grid, and checked with its scripts/roomcheck.pl (scripts/map.cmd runs it).
 function Core.registerRooms()
+    -- A hard dependency, so this is only ever missing when PhunInteriors is
+    -- older than this mod. Said loudly, as server_commands does for sendTo.
     if not Core.interiorsReady() then
-        Core.debugLn("PhunInteriors is not installed, so spawn rooms are off")
+        Core.logLn("PhunInteriors.registerRoom is missing; PhunInteriors is older than this version of PhunTaxi needs")
         return false
     end
 
     PhunInteriors.registerRoom(Core.roomIds.arrival, {
         label = "Spawn",
-        source = "phunspawn",
+        source = "phuntaxi",
         size = {
             w = 9,
             h = 10
@@ -85,19 +80,12 @@ function Core.registerRooms()
         }
     })
 
-    PhunInteriors.registerVehicles({
-        id = "phunspawn.vehicles.Spawn",
-        source = "phunspawn",
-        rooms = {"phun.spawn.arrival"},
-        scripts = {"Base.CarTaxi"}
-    })
-
     return true
 end
 
 Events.OnInitGlobalModData.Add(function()
-    -- Definitive by now: all lua has loaded, so PhunInteriors either exists
-    -- or genuinely is not installed.
+    -- All lua has loaded by now, so PhunInteriors' registry is there to take
+    -- the room whatever order the two mods loaded in.
     Core.registerRooms()
 end)
 

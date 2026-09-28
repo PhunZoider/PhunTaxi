@@ -1,6 +1,6 @@
 module Base
 {
-	sound PhunSpawn_PhoneRinging
+	sound PhunTaxi_PhoneRinging
 	{
         category = Player,
 		loop = true, 
@@ -8,7 +8,19 @@ module Base
         clip { 
 			file = media/sound/ringing.ogg, 
 			distanceMax = 30, 
-			volume = 0.3f 
+			volume = 0.3f 0.
 		}
 	}
+
+	sound PhunTaxi_DriveOff
+	{
+        category = Player,
+		loop = false, 
+		is3D = true,
+        clip { 
+			file = media/sound/driveoff.ogg, 
+			distanceMax = 30, 
+			volume = 0.3f 
+		}
+	}	
 }

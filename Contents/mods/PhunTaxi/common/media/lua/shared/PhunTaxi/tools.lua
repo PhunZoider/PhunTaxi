@@ -1,5 +1,5 @@
-require "PhunSpawn/core"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- Local utility surface.

@@ -1,4 +1,4 @@
-module PhunSpawn
+module PhunTaxi
 {
     imports
     {
@@ -7,7 +7,7 @@ module PhunSpawn
 
     /* A pay phone in a box. Not a moveable: it is built by a request the
        server checks before anything goes into the world, see
-       server/PhunSpawn/building.lua. */
+       server/PhunTaxi/building.lua. */
     item PayPhoneKit
     {
         DisplayCategory = Material,
@@ -16,7 +16,7 @@ module PhunSpawn
         Icon = ElectronicsScrap,
     }
 
-    craftRecipe PhunSpawnPayPhoneKit
+    craftRecipe PhunTaxiPayPhoneKit
     {
         timedAction = Making,
         time = 600,
@@ -34,7 +34,7 @@ module PhunSpawn
         }
         outputs
         {
-            item 1 PhunSpawn.PayPhoneKit,
+            item 1 PhunTaxi.PayPhoneKit,
         }
     }
 }

@@ -3,8 +3,8 @@ if isServer() then
 end
 require "ISUI/ISUIElement"
 require "ISUI/Maps/ISMapDefinitions"
-local Core = PhunSpawn
-local tools = require "PhunSpawn/ui/ui_utils"
+local Core = PhunTaxi
+local tools = require "PhunTaxi/ui/ui_utils"
 
 -- ---------------------------------------------------------------------------
 -- The map half of the picker: the player's own world map, with a pin for
@@ -22,7 +22,7 @@ local tools = require "PhunSpawn/ui/ui_utils"
 -- as a world rectangle, which is only true top down.
 -- ---------------------------------------------------------------------------
 
-local MapPanel = ISUIElement:derive("PhunSpawnMapPanel")
+local MapPanel = ISUIElement:derive("PhunTaxiMapPanel")
 
 local FONT_HGT_SMALL = tools.FONT_HGT_SMALL
 local PIN = math.max(10, math.floor(FONT_HGT_SMALL * 0.9))

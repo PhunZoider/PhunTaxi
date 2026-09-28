@@ -9,17 +9,17 @@ local ROOT = os.getenv("PS_ROOT") or "."
 local stubs = dofile(ROOT .. "/Tests/lua/stubs.lua")
 stubs.install(ROOT)
 
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-require "PhunSpawn/phones"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
 Core.logLn = function()
 end
 Core.debugLn = function()
 end
 
-local Unlocks = require "PhunSpawn/unlocks"
-local PhoneSwap = require "PhunSpawn/phone_swap"
+local Unlocks = require "PhunTaxi/unlocks"
+local PhoneSwap = require "PhunTaxi/phone_swap"
 local report = stubs.reporter()
 local check = report.check
 
@@ -159,15 +159,15 @@ local bob = stubs.player("bob", 5)
 bob.moveTo(1100, 2000, 0)
 local got, why = PhoneSwap.use(bob, {x = 1000, y = 2000, z = 0})
 check("too far is refused", got, nil)
-check("and says so", why, "IGUI_PhunSpawn_PhoneTooFar")
+check("and says so", why, "IGUI_PhunTaxi_PhoneTooFar")
 
 bob.moveTo(1000, 2001, 0)
 got, why = PhoneSwap.use(bob, {x = 1000, y = 2000, z = 1})
-check("another level is too far", why, "IGUI_PhunSpawn_PhoneTooFar")
+check("another level is too far", why, "IGUI_PhunTaxi_PhoneTooFar")
 
 bob.moveTo(1030, 2001, 0)
 got, why = PhoneSwap.use(bob, {x = 1030, y = 2000, z = 0})
-check("an unrecorded phone is dead", why, "IGUI_PhunSpawn_PhoneDead")
+check("an unrecorded phone is dead", why, "IGUI_PhunTaxi_PhoneDead")
 
 bob.moveTo(1000.6, 2001.4, 0)
 got, why = PhoneSwap.use(bob, {x = 1000, y = 2000, z = 0})
@@ -179,7 +179,52 @@ check("a second use still answers", got ~= nil, true)
 check("with nothing new", why, false)
 
 got, why = PhoneSwap.use(bob, {})
-check("no square is dead", why, "IGUI_PhunSpawn_PhoneDead")
+check("no square is dead", why, "IGUI_PhunTaxi_PhoneDead")
+
+-- A phone of ours standing with no record, one an admin put down from the
+-- item: recorded on use, and on its square loading.
+local function squareWith(x, y, z, spriteName)
+    local objects = {{
+        getSprite = function()
+            return {getName = function() return spriteName end}
+        end,
+        getModData = function() return {} end
+    }}
+    return {
+        getX = function() return x end,
+        getY = function() return y end,
+        getZ = function() return z end,
+        getObjects = function()
+            return {
+                size = function() return #objects end,
+                get = function(_, i) return objects[i + 1] end
+            }
+        end
+    }
+end
+local realGetCell = getCell
+local placed = {
+    ["1060_2000_0"] = squareWith(1060, 2000, 0, "phuninteriors_01_17"),
+    ["1090_2000_0"] = squareWith(1090, 2000, 0, "phuninteriors_01_18")
+}
+getCell = function()
+    return {getGridSquare = function(_, x, y, z) return placed[x .. "_" .. y .. "_" .. z] end}
+end
+
+bob.moveTo(1060, 2001, 0)
+got, why = PhoneSwap.use(bob, {x = 1060, y = 2000, z = 0})
+check("a placed phone is recorded on use", got and got.id, "phun.spawn.phone.1060_2000_0")
+check("and granted", why, true)
+check("and kept its facing", PhoneSwap.store()["1060_2000_0"].facing, "S")
+check("but not kept", PhoneSwap.store()["1060_2000_0"].kept, nil)
+
+PhoneSwap.ready = true
+PhoneSwap.loadGridsquare(placed["1090_2000_0"])
+check("a placed phone is recorded on load", Core.points["phun.spawn.phone.1090_2000_0"] ~= nil, true)
+check("facing west", PhoneSwap.store()["1090_2000_0"].facing, "W")
+PhoneSwap.ready = false
+getCell = realGetCell
+bob.moveTo(1000, 2001, 0)
 
 -- The location is looked at again on use, for a phone that swapped before
 -- PhunZones was ready.
@@ -223,12 +268,22 @@ check("an unused phone is not", sawPhone, false)
 
 -- ---------------------------------------------------------------------------
 -- Ringing is decided client side, from the squares the client has loaded and
--- the ids in its points payload. So the id the server registers a phone under
--- and the id the client builds from its square must be the same string.
+-- the phone keys in its points payload. So the key the payload carries for a
+-- phone and the key the client builds from its square must be the same string.
 -- ---------------------------------------------------------------------------
 reset()
 local registered = PhoneSwap.add(1000, 2000, 0, "S", "phuninteriors_01_17")
 check("client and server agree on a phone's id", Core.phonePointId(1000, 2000, 0), registered.id)
+check("and on its square", Core.phoneKey(1000, 2000, 0), registered.phoneKey)
+local sam = stubs.player("sam", 5)
+Unlocks.grant(sam, registered.id)
+local carried
+for _, p in ipairs(Unlocks.payloadFor(sam)) do
+    if p.id == registered.id then
+        carried = p.phone
+    end
+end
+check("a known phone carries its square in the payload", carried, Core.phoneKey(1000, 2000, 0))
 
 local function spotsOf()
     return {
@@ -255,24 +310,120 @@ check("the nearest of ours rings", rings and rings.x, 1000)
 check("an unloaded square is forgotten", spots.gone, nil)
 check("a vanilla one is kept for later", spots.c ~= nil, true)
 
-rings = Core.phoneToRing(spotsOf(), {[Core.phonePointId(1000, 2000, 0)] = true}, 1003, 2000, 20, standingOf)
+rings = Core.phoneToRing(spotsOf(), {[Core.phoneKey(1000, 2000, 0)] = true}, 1003, 2000, 20, standingOf)
 check("a known phone does not, the next does", rings and rings.x, 1010)
 
 rings = Core.phoneToRing(spotsOf(), {
-    [Core.phonePointId(1000, 2000, 0)] = true,
-    [Core.phonePointId(1010, 2000, 0)] = true
+    [Core.phoneKey(1000, 2000, 0)] = true,
+    [Core.phoneKey(1010, 2000, 0)] = true
 }, 1003, 2000, 20, standingOf)
 check("a vanilla phone never rings", rings, nil)
 
 stands.c = true
 rings = Core.phoneToRing(spotsOf(), {
-    [Core.phonePointId(1000, 2000, 0)] = true,
-    [Core.phonePointId(1010, 2000, 0)] = true
+    [Core.phoneKey(1000, 2000, 0)] = true,
+    [Core.phoneKey(1010, 2000, 0)] = true
 }, 1003, 2000, 20, standingOf)
 check("until the swap reaches us", rings and rings.x, 1015)
 
 check("out of range nothing rings", Core.phoneToRing(spotsOf(), {}, 1500, 2000, 20, standingOf), nil)
 check("no range, nothing rings", Core.phoneToRing(spotsOf(), {}, 1003, 2000, 0, standingOf), nil)
+
+-- ---------------------------------------------------------------------------
+-- A point registered with a phone: the phone stands behind it, is recorded
+-- under the point's id, and is put back rather than forgotten.
+-- ---------------------------------------------------------------------------
+reset()
+check("a bad phone facing is refused", Core.registerPoint("d.bad", {label = "Bad", x = 1, y = 1, phone = "up"}), nil)
+check("and not registered", Core.points["d.bad"], nil)
+
+local declared = Core.registerPoint("d.diner", {
+    label = "Diner",
+    x = 3001,
+    y = 3000,
+    discovery = Core.discovery.start,
+    phone = "E"
+})
+check("a point with a phone registers", declared ~= nil, true)
+check("its phone stands behind it", declared and declared.phoneKey, "3000_3000_0")
+check("and keeps its own discovery", declared and declared.discovery, "start")
+check("it is not a pay phone's point", Core.isPhonePoint(declared), false)
+
+PhoneSwap.syncDeclared()
+local drec = PhoneSwap.store()["3000_3000_0"]
+check("the sync records its phone", drec ~= nil, true)
+check("owned by the point", drec and drec.point, "d.diner")
+check("facing the way it said", drec and drec.facing, "E")
+check("with no point of its own", Core.points["phun.spawn.phone.3000_3000_0"], nil)
+check("the key finds the point's id", PhoneSwap.idOf("3000_3000_0"), "d.diner")
+check("and the id finds the key", PhoneSwap.keyOfPoint("d.diner"), "3000_3000_0")
+check("an ordinary point has no key", PhoneSwap.keyOfPoint("a.explore"), nil)
+check("it is never forgotten", PhoneSwap.forget(3000, 3000, 0), false)
+check("and it counts for spacing", PhoneSwap.farEnough(3100, 3000), false)
+
+-- A square loading without it puts one up, over nothing.
+local puts = {}
+local realReplace = PhoneSwap.replace
+PhoneSwap.replace = function(square, old, spriteName)
+    table.insert(puts, {old = old, sprite = spriteName})
+    return true
+end
+local function emptySquare(x, y, z)
+    return {
+        getX = function() return x end,
+        getY = function() return y end,
+        getZ = function() return z end,
+        getObjects = function()
+            return {size = function() return 0 end}
+        end
+    }
+end
+PhoneSwap.ready = true
+PhoneSwap.loadGridsquare(emptySquare(3000, 3000, 0))
+check("an empty square gets its phone", #puts, 1)
+check("facing east", puts[1] and puts[1].sprite, "phuninteriors_01_16")
+check("and the record is still there", PhoneSwap.store()["3000_3000_0"] ~= nil, true)
+PhoneSwap.loadGridsquare(emptySquare(3050, 3000, 0))
+check("a square with nothing asked for is left alone", #puts, 1)
+PhoneSwap.replace = realReplace
+
+-- Using it grants the point, which a start point already is.
+local dan = stubs.player("dan", 5)
+dan.moveTo(3001, 3000, 0)
+got, why = PhoneSwap.use(dan, {x = 3000, y = 3000, z = 0})
+check("using it answers with the point", got and got.id, "d.diner")
+check("already known, as a start point", why, false)
+
+-- A swapped phone already standing where a point asks for one is taken over.
+PhoneSwap.add(4000, 4000, 0, "S", "phuninteriors_01_17")
+check("a swapped phone has its own point", Core.points["phun.spawn.phone.4000_4000_0"] ~= nil, true)
+Core.registerPoint("d.station", {label = "Station", x = 4000, y = 4001, phone = "S"})
+PhoneSwap.syncDeclared()
+check("the point takes it over", PhoneSwap.store()["4000_4000_0"].point, "d.station")
+check("and its own point goes", Core.points["phun.spawn.phone.4000_4000_0"], nil)
+check("keeping its sprite", PhoneSwap.store()["4000_4000_0"].sprite, "phuninteriors_01_17")
+
+-- The point going leaves the phone as an ordinary one, and coming back takes
+-- it again.
+Core.removePoint("d.station")
+PhoneSwap.syncDeclared()
+check("a point gone lets its phone go", PhoneSwap.store()["4000_4000_0"].point, nil)
+check("which is a pay phone again", Core.points["phun.spawn.phone.4000_4000_0"] ~= nil, true)
+check("and could be forgotten", PhoneSwap.store()["4000_4000_0"] ~= nil, true)
+Core.registerPoint("d.station", {label = "Station", x = 4000, y = 4001, phone = "S"})
+PhoneSwap.syncDeclared()
+check("back again, it takes it over again", PhoneSwap.store()["4000_4000_0"].point, "d.station")
+
+-- A restart registers no pay phone point for a phone a point owns.
+Core.points = {}
+Core.indexesBuilt = false
+Core.registerPoint("d.diner", {label = "Diner", x = 3001, y = 3000, discovery = Core.discovery.start, phone = "E"})
+Core.registerPoint("d.station", {label = "Station", x = 4000, y = 4001, phone = "S"})
+PhoneSwap.start()
+check("after a restart the diner owns its phone", PhoneSwap.store()["3000_3000_0"].point, "d.diner")
+check("and no pay phone point was made for it", Core.points["phun.spawn.phone.3000_3000_0"], nil)
+check("nor for the station's", Core.points["phun.spawn.phone.4000_4000_0"], nil)
+PhoneSwap.ready = false
 
 -- ---------------------------------------------------------------------------
 -- The guards, installed over stand-ins for the vanilla classes. What matters
@@ -340,7 +491,7 @@ end
 function getTimestampMs()
     return 0
 end
-require "PhunSpawn/phone_guards"
+require "PhunTaxi/phone_guards"
 Core.installPhoneGuards()
 
 local player = characterOf(false, false)

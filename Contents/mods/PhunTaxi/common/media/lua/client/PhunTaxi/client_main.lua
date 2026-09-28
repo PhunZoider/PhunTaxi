@@ -1,9 +1,9 @@
 if isServer() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/taxi"
-local Core = PhunSpawn
+require "PhunTaxi/points"
+require "PhunTaxi/taxi"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- Client state and the small things that touch the screen.
@@ -25,6 +25,10 @@ Client.lastChoice = nil
 -- server asks again when the button is pressed.
 Client.pending = false
 Client.canSpawn = false
+-- Whether an admin's right click carries Spawn point setup and Spawn points.
+-- Off until they turn it on in the editor, and off again next session: it
+-- is clutter on every right click, wanted only while setting a world up.
+Client.setupMenu = false
 
 --- A fresh picture of what this character knows.
 --
@@ -56,6 +60,11 @@ function Client.notify(arguments)
     local player = getPlayer()
     if player then
         player:setHaloNote(text, 255, 255, 255, 300)
+        -- On the player's own emitter, which moves with them, so it is heard
+        -- where they land whether or not the move has reached this client yet.
+        if arguments.sound then
+            player:playSound(arguments.sound)
+        end
     else
         Core.logLn(text)
     end
@@ -73,7 +82,7 @@ function Client.announceUnlock(arguments)
         return
     end
     Client.notify({
-        text = arguments.text or "IGUI_PhunSpawn_Discovered",
+        text = arguments.text or "IGUI_PhunTaxi_Discovered",
         arg = arguments.label
     })
     local phone = arguments.phone
@@ -97,18 +106,27 @@ function Client.usePhone(phone)
 end
 
 function Client.choose(id)
-    Core.dispatch(Core.commands.choose, {id = id})
+    Core.dispatch(Core.commands.choose, {
+        id = id
+    })
 end
 
 --- Ask to be put at a point now. The server decides; see placement.lua.
 function Client.spawn(id)
-    Core.dispatch(Core.commands.spawn, {id = id})
+    Core.dispatch(Core.commands.spawn, {
+        id = id
+    })
 end
 
 --- A taxi from the phone at `from` ({x, y, z}) to point `id`, for a fare.
 --- The server checks everything and charges; see server/rides.lua.
 function Client.taxi(from, id)
-    Core.dispatch(Core.commands.taxi, {x = from.x, y = from.y, z = from.z, id = id})
+    Core.dispatch(Core.commands.taxi, {
+        x = from.x,
+        y = from.y,
+        z = from.z,
+        id = id
+    })
 end
 
 --- Build a phone from `kit` on `square`, facing `facing`.
@@ -123,7 +141,11 @@ function Client.buildPhone(square, facing, kit)
 end
 
 function Client.takeDownPhone(phone)
-    Core.dispatch(Core.commands.takeDownPhone, {x = phone:getX(), y = phone:getY(), z = phone:getZ()})
+    Core.dispatch(Core.commands.takeDownPhone, {
+        x = phone:getX(),
+        y = phone:getY(),
+        z = phone:getZ()
+    })
 end
 
 --- Ask for a fresh payload. Answered through receivePoints like any other.
@@ -151,19 +173,24 @@ function Client.requestAdminPoints()
 end
 
 function Client.adminPort(id)
-    Core.dispatch(Core.commands.adminPort, {id = id})
+    Core.dispatch(Core.commands.adminPort, {
+        id = id
+    })
 end
 
 --- An empty label puts the registered one back.
 function Client.adminRename(id, label)
-    Core.dispatch(Core.commands.adminRename, {id = id, label = label or ""})
+    Core.dispatch(Core.commands.adminRename, {
+        id = id,
+        label = label or ""
+    })
 end
 
 --- The console door to the server's admin actions: list, grant, where,
 --- reload. The answer is printed to this client's console, as lines.
 --- Checked for admin rights on the server like everything else here.
 ---
----   PhunSpawn.admin("reload")   read PhunSpawn.json again after a hand edit
+---   PhunTaxi.admin("reload")   read PhunTaxi.json again after a hand edit
 function Core.admin(action, args)
     local payload = {}
     for k, v in pairs(args or {}) do
@@ -176,15 +203,31 @@ end
 --- Everything below is saved to the store file on the server, so it
 --- survives a wipe. See server/store.lua.
 function Client.adminAddPoint(x, y, z, label)
-    Core.dispatch(Core.commands.adminAddPoint, {x = x, y = y, z = z, label = label})
+    Core.dispatch(Core.commands.adminAddPoint, {
+        x = x,
+        y = y,
+        z = z,
+        label = label
+    })
 end
 
 function Client.adminRemovePoint(id)
-    Core.dispatch(Core.commands.adminRemovePoint, {id = id})
+    Core.dispatch(Core.commands.adminRemovePoint, {
+        id = id
+    })
+end
+
+function Client.adminRestorePoint(id)
+    Core.dispatch(Core.commands.adminRestorePoint, {
+        id = id
+    })
 end
 
 function Client.adminSetKind(id, discovery)
-    Core.dispatch(Core.commands.adminSetKind, {id = id, discovery = discovery})
+    Core.dispatch(Core.commands.adminSetKind, {
+        id = id,
+        discovery = discovery
+    })
 end
 
 --- By square, from the context menu, or by point id, from the editor.
@@ -193,12 +236,14 @@ function Client.adminKeepPhone(args)
 end
 
 function Client.adminReleasePhone(id)
-    Core.dispatch(Core.commands.adminReleasePhone, {id = id})
+    Core.dispatch(Core.commands.adminReleasePhone, {
+        id = id
+    })
 end
 
 --- Reached from the admin panel and the debug menu; see client_admin.lua.
 function Client.openEditor()
-    local Editor = require "PhunSpawn/ui/editor"
+    local Editor = require "PhunTaxi/ui/editor"
     Editor.open(getPlayer())
 end
 
@@ -208,7 +253,7 @@ end
 -- picker requires this file and a require cycle in Kahlua hands one side a
 -- half built module.
 function Client.openPicker()
-    local Picker = require "PhunSpawn/ui/picker"
+    local Picker = require "PhunTaxi/ui/picker"
     Picker.open(getPlayer())
 end
 
@@ -216,7 +261,7 @@ end
 --- the phone's square and the one in front): only known phones, and the
 --- fare on the button.
 function Client.openTaxi(from)
-    local Picker = require "PhunSpawn/ui/picker"
+    local Picker = require "PhunTaxi/ui/picker"
     Picker.open(getPlayer(), from)
 end
 

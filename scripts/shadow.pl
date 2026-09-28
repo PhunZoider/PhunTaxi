@@ -1,7 +1,7 @@
 #!/usr/bin/perl
 # Locals redeclared at the top level of the same function body.
 #
-#   perl Tests/shadow.pl <file.lua>...
+#   perl scripts/shadow.pl <file.lua>...
 #
 # LuaJIT parses a shadowed local perfectly happily, and the failure it causes
 # is silent and remote: Transit.leave declared a second `destination` eighty

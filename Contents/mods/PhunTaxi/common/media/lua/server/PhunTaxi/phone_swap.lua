@@ -1,11 +1,11 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/phones"
-local Core = PhunSpawn
-local Unlocks = require "PhunSpawn/unlocks"
-local Store = require "PhunSpawn/store"
+require "PhunTaxi/points"
+require "PhunTaxi/phones"
+local Core = PhunTaxi
+local Unlocks = require "PhunTaxi/unlocks"
+local Store = require "PhunTaxi/store"
 local PhoneSwap = {}
 
 -- ---------------------------------------------------------------------------
@@ -26,8 +26,12 @@ local PhoneSwap = {}
 -- phone. The phone tiles are movable, and PhunInteriors' API table is clear
 -- that a plain object's modData does not survive a pickup. So a phone
 -- somebody carried off is noticed the next time its square loads without it,
--- and a phone somebody put down elsewhere is simply a phone: it is not a
--- spawn point, and using it says the line is dead.
+-- and a phone of ours standing where nothing is recorded gets a record there
+-- and then: an admin put it down from the item, or a wipe of global ModData
+-- took its record and left its chunk. It is a spawn point like a built one,
+-- not kept and not spaced. That is noticed when its square loads and when
+-- somebody uses it, since one an admin just put down is on a square that has
+-- already loaded.
 --
 -- A KEPT phone is the exception. An admin kept it, so it is in the store file
 -- as well as here (store.lua), and it is never forgotten: a square that loads
@@ -36,6 +40,17 @@ local PhoneSwap = {}
 -- where the ModData record is gone and the file is not. It does not roll, and
 -- it counts for PhoneDistance like any other, so the random swap spaces
 -- itself around what an admin placed.
+--
+-- A phone a POINT asks for is the other exception. A point registered with
+-- `phone` (a facing) wants one of ours standing behind it, so a character
+-- who arrives there can call a taxi. It gets a record like any other phone,
+-- marked with the point's id in `point`, and that record is treated as kept:
+-- never forgotten, and put back when its square loads without it. It has no
+-- point of its own, because the point that asked for it is its point: using
+-- it grants that id, a ride to it goes there, and a ride from it starts
+-- there. The records follow the registry (syncDeclared): a point that goes,
+-- or is deleted, leaves its phone standing as an ordinary swapped phone, and
+-- one that comes back takes it over again.
 -- ---------------------------------------------------------------------------
 
 -- How close a player must stand to use a phone, in squares either way. The
@@ -48,12 +63,11 @@ local index = {}
 
 PhoneSwap.ready = false
 
-local function keyOf(x, y, z)
-    return tostring(x) .. "_" .. tostring(y) .. "_" .. tostring(z or 0)
-end
+local keyOf = Core.phoneKey
 
 -- The same id Core.phonePointId builds from a square, from the square key
--- the records are stored under. The client relies on the two agreeing.
+-- the records are stored under: the id a phone with no point of its own
+-- registers under.
 function PhoneSwap.pointId(key)
     return "phun.spawn.phone." .. key
 end
@@ -61,6 +75,13 @@ end
 function PhoneSwap.store()
     Core.data.phones = Core.data.phones or {}
     return Core.data.phones
+end
+
+--- The id of the point a recorded phone grants: the point that asked for it,
+--- or its own.
+function PhoneSwap.idOf(key)
+    local record = PhoneSwap.store()[key]
+    return record and record.point or PhoneSwap.pointId(key)
 end
 
 local function rebuildIndex()
@@ -99,7 +120,13 @@ end
 
 --- Register one record as a point. The region comes from PhunZones and is
 --- nil without it, which the picker files under "Elsewhere".
+---
+--- A phone a point asked for registers nothing: that point is its point, and
+--- is returned instead.
 function PhoneSwap.registerRecord(key, record)
+    if record.point then
+        return Core.points[record.point]
+    end
     local fx, fy = Core.phoneFront(record.x, record.y, record.facing)
     return Core.registerPoint(PhoneSwap.pointId(key), {
         label = PhoneSwap.labelFor(record),
@@ -107,6 +134,9 @@ function PhoneSwap.registerRecord(key, record)
         x = fx,
         y = fy,
         z = record.z or 0,
+        -- Only a facing the table knows: registerPoint refuses any other,
+        -- and an old record should still come up as a point.
+        phone = Core.phones.front[record.facing] and record.facing or nil,
         discovery = Core.discovery.used,
         -- After the named places in the same town.
         priority = 10,
@@ -154,7 +184,76 @@ function PhoneSwap.start()
     for key, record in pairs(PhoneSwap.store()) do
         PhoneSwap.registerRecord(key, record)
     end
+    -- After the records, so a phone whose point has gone since the last boot
+    -- is registered once, by the sync, as an ordinary phone.
+    PhoneSwap.syncDeclared()
     PhoneSwap.ready = true
+end
+
+-- The registry version the phone records last matched. See syncDeclared.
+local syncedVersion = nil
+
+--- Bring the records in line with the points that ask for a phone.
+---
+--- A point registered with `phone` gets a record at the square behind it,
+--- owned by its id: made if there was none, taken over if a swapped or kept
+--- phone already stood there (its own point goes). A record whose point no
+--- longer asks for it, because the point went, was deleted or moved, goes
+--- back to being an ordinary phone with a point of its own.
+---
+--- Asked before anything reads a record, and cheap when nothing changed:
+--- points can register at any time, so this follows Core.registryVersion
+--- rather than running once at boot.
+function PhoneSwap.syncDeclared()
+    if syncedVersion == Core.registryVersion then
+        return
+    end
+    local store = PhoneSwap.store()
+
+    -- phone key -> the point asking for it. Two asking for one square is a
+    -- mistake, answered the same way every boot: the lower id wins.
+    local owners = {}
+    for id, point in pairs(Core.points) do
+        local key = point.phoneKey
+        if key and id ~= PhoneSwap.pointId(key) and (not owners[key] or id < owners[key].id) then
+            owners[key] = point
+        end
+    end
+
+    for key, record in pairs(store) do
+        local owner = owners[key]
+        if record.point and not (owner and owner.id == record.point) then
+            record.point = nil
+            PhoneSwap.registerRecord(key, record)
+        end
+    end
+
+    for key, point in pairs(owners) do
+        local record = store[key]
+        if not record then
+            local px, py = Core.phoneBehind(point.x, point.y, point.phone)
+            record = {
+                x = px,
+                y = py,
+                z = point.z or 0,
+                created = Core.now()
+            }
+            store[key] = record
+        end
+        if record.facing ~= point.phone then
+            -- The point says which way its phone faces; a sprite for the
+            -- other way would be put back facing the wall.
+            record.facing = point.phone
+            record.sprite = nil
+        end
+        if record.point ~= point.id then
+            record.point = point.id
+            Core.removePoint(PhoneSwap.pointId(key))
+        end
+    end
+
+    rebuildIndex()
+    syncedVersion = Core.registryVersion
 end
 
 --- Is x, y at least PhoneDistance from every recorded phone? Squared
@@ -203,11 +302,11 @@ end
 --- like any other removed point.
 ---
 --- Never a kept phone: that is put back instead, and has to be released
---- first to be forgotten.
+--- first to be forgotten. Nor one a point asked for, which is put back too.
 function PhoneSwap.forget(x, y, z)
     local key = keyOf(x, y, z)
     local store = PhoneSwap.store()
-    if not store[key] or store[key].kept then
+    if not store[key] or store[key].kept or store[key].point then
         return false
     end
     store[key] = nil
@@ -215,6 +314,18 @@ function PhoneSwap.forget(x, y, z)
     rebuildIndex()
     Core.logLn("pay phone at " .. key .. " is gone, so it is no longer a spawn point")
     return true
+end
+
+--- Record a phone of ours found standing on a square with no record, and
+--- register it. Returns the point.
+---
+--- Not spaced against other phones: somebody put this one here on purpose,
+--- which is the decision PhoneDistance only stands in for. Not kept either,
+--- so like a built phone it goes with a wipe unless an admin keeps it.
+function PhoneSwap.recordStanding(square, spriteName)
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    Core.logLn("pay phone at " .. keyOf(x, y, z) .. " had no record, so it is a spawn point now")
+    return PhoneSwap.add(x, y, z, Core.phoneFacing(spriteName), spriteName)
 end
 
 --- Put our phone where `old` stands, or on the square when `old` is nil.
@@ -282,6 +393,7 @@ function PhoneSwap.loadGridsquare(square)
     if not PhoneSwap.ready or not square then
         return
     end
+    PhoneSwap.syncDeclared()
     local x, y = square:getX(), square:getY()
     local column = index[x]
     local record = column ~= nil and column[y] == true and PhoneSwap.store()[keyOf(x, y, square:getZ())] or nil
@@ -290,14 +402,14 @@ function PhoneSwap.loadGridsquare(square)
     local swapping = (Core.settings.PhoneChance or 0) > 0
 
     local objects = square:getObjects()
-    local found, candidate, candidateFacing = false, nil, nil
+    local found, candidate, candidateFacing = nil, nil, nil
     for i = 0, objects:size() - 1 do
         local obj = objects:get(i)
         local sprite = obj:getSprite()
         local name = sprite and sprite:getName()
         if name then
-            if record and Core.phoneFacing(name) then
-                found = true
+            if Core.phoneFacing(name) then
+                found = found or name
             elseif (swapping or record) and not candidate then
                 local facing = Core.phoneTargetFacing(name)
                 if facing then
@@ -308,33 +420,38 @@ function PhoneSwap.loadGridsquare(square)
     end
 
     if record and not found then
-        -- Kept, so put back, over the vanilla phone a new world has here.
-        if record.kept then
+        -- Kept, or a point's, so put back, over the vanilla phone a new
+        -- world has here. A point's phone is first put up this way too.
+        if record.kept or record.point then
             PhoneSwap.restore(square, record, candidate)
             return
         end
         -- Recorded here and not standing here: somebody carried it off.
         PhoneSwap.forget(x, y, square:getZ())
+    elseif found and not record then
+        PhoneSwap.recordStanding(square, found)
+        return
     end
     if candidate and swapping then
         PhoneSwap.roll(square, candidate, candidateFacing)
     end
 end
 
---- Put a kept phone back on its square, replacing `old` when that is a
---- vanilla phone standing there. Its own sprite when that is still one of
---- ours, since a sprite dropped from the table since would be put back as a
---- phone nothing recognises.
+--- Put a kept phone, or a point's, back on its square, replacing `old` when
+--- that is a vanilla phone standing there. Its own sprite when that is still
+--- one of ours facing its way, since a sprite dropped from the table since
+--- would be put back as a phone nothing recognises.
 function PhoneSwap.restore(square, record, old)
     local spriteName = record.sprite
-    if not (spriteName and Core.phoneFacing(spriteName)) then
+    if not (spriteName and Core.phoneFacing(spriteName) == record.facing) then
         spriteName = Core.phoneSpriteFor(record.facing, ZombRand)
     end
     if not (spriteName and PhoneSwap.replace(square, old, spriteName)) then
         return false
     end
     record.sprite = spriteName
-    Core.logLn("kept pay phone at " .. keyOf(record.x, record.y, record.z) .. " put back")
+    Core.logLn((record.point and ("pay phone for " .. record.point) or "kept pay phone") .. " at " ..
+                   keyOf(record.x, record.y, record.z) .. " put back")
     return true
 end
 
@@ -372,11 +489,11 @@ PhoneSwap.keyOf = keyOf
 --- Returns the point, or nil and a translation key.
 function PhoneSwap.keep(x, y, z, facing)
     if facing ~= nil and not Core.phones.front[facing] then
-        return nil, "IGUI_PhunSpawn_CannotPlacePhone"
+        return nil, "IGUI_PhunTaxi_CannotPlacePhone"
     end
     local square = getCell():getGridSquare(x, y, z or 0)
     if not square then
-        return nil, "IGUI_PhunSpawn_NoPhoneHere"
+        return nil, "IGUI_PhunTaxi_NoPhoneHere"
     end
     local key = keyOf(x, y, z)
     local ours, oursName, vanilla, vanillaFacing = phonesOn(square)
@@ -387,23 +504,23 @@ function PhoneSwap.keep(x, y, z, facing)
     elseif vanilla then
         local spriteName = Core.phoneSpriteFor(vanillaFacing, ZombRand)
         if not (spriteName and PhoneSwap.replace(square, vanilla, spriteName)) then
-            return nil, "IGUI_PhunSpawn_NoPhoneHere"
+            return nil, "IGUI_PhunTaxi_NoPhoneHere"
         end
         PhoneSwap.add(x, y, z, vanillaFacing, spriteName)
     elseif facing then
         -- No phone here at all, and the admin asked for one facing this way.
         local spriteName = Core.phoneSpriteFor(facing, ZombRand)
         if not (spriteName and PhoneSwap.replace(square, nil, spriteName)) then
-            return nil, "IGUI_PhunSpawn_CannotPlacePhone"
+            return nil, "IGUI_PhunTaxi_CannotPlacePhone"
         end
         PhoneSwap.add(x, y, z, facing, spriteName)
     else
-        return nil, "IGUI_PhunSpawn_NoPhoneHere"
+        return nil, "IGUI_PhunTaxi_NoPhoneHere"
     end
 
     local record = PhoneSwap.store()[key]
     if not Store.keepPhone(key, record) then
-        return nil, "IGUI_PhunSpawn_NotSaved"
+        return nil, "IGUI_PhunTaxi_NotSaved"
     end
     record.kept = true
     return PhoneSwap.registerRecord(key, record)
@@ -414,10 +531,10 @@ end
 function PhoneSwap.release(key)
     local record = PhoneSwap.store()[key]
     if not record or not record.kept then
-        return nil, "IGUI_PhunSpawn_NotKept"
+        return nil, "IGUI_PhunTaxi_NotKept"
     end
     if not Store.releasePhone(key) then
-        return nil, "IGUI_PhunSpawn_NotSaved"
+        return nil, "IGUI_PhunTaxi_NotSaved"
     end
     record.kept = nil
     return PhoneSwap.registerRecord(key, record)
@@ -438,7 +555,7 @@ function PhoneSwap.announcement(point)
     return {
         id = point.id,
         label = point.label,
-        text = "IGUI_PhunSpawn_PhoneFound",
+        text = "IGUI_PhunTaxi_PhoneFound",
         phone = {
             x = record.x,
             y = record.y,
@@ -447,13 +564,20 @@ function PhoneSwap.announcement(point)
     }
 end
 
---- The record key out of a phone's point id, or nil when it is not one.
+--- The record key out of a phone's point id, or nil when it is not one. A
+--- point that asked for a phone answers with its phone's key.
 function PhoneSwap.keyOfPoint(id)
-    local prefix = PhoneSwap.pointId("")
-    if type(id) ~= "string" or id:sub(1, #prefix) ~= prefix then
+    if type(id) ~= "string" then
         return nil
     end
-    return id:sub(#prefix + 1)
+    local prefix = PhoneSwap.pointId("")
+    if id:sub(1, #prefix) == prefix then
+        return id:sub(#prefix + 1)
+    end
+    PhoneSwap.syncDeclared()
+    local point = Core.points[id]
+    local record = point and point.phoneKey and PhoneSwap.store()[point.phoneKey]
+    return record and record.point == id and point.phoneKey or nil
 end
 
 --- A player picked up the receiver. Returns (point, granted), or (nil, why)
@@ -478,7 +602,7 @@ function PhoneSwap.use(player, args)
         PhoneSwap.registerRecord(key, record)
     end
 
-    local id = PhoneSwap.pointId(key)
+    local id = PhoneSwap.idOf(key)
     local point = Core.points[id] or PhoneSwap.registerRecord(key, record)
     local granted = Unlocks.grant(player, id)
     Core.logLn(tostring(Core.playerKey(player)) .. " used the pay phone at " .. key .. ", location " ..
@@ -493,33 +617,31 @@ end
 function PhoneSwap.phoneAt(player, args)
     local x, y, z = tonumber(args and args.x), tonumber(args and args.y), tonumber(args and args.z) or 0
     if not x or not y then
-        return nil, "IGUI_PhunSpawn_PhoneDead"
+        return nil, "IGUI_PhunTaxi_PhoneDead"
     end
     if math.abs(math.floor(player:getX()) - x) > REACH or math.abs(math.floor(player:getY()) - y) > REACH or
         math.floor(player:getZ()) ~= z then
-        return nil, "IGUI_PhunSpawn_PhoneTooFar"
+        return nil, "IGUI_PhunTaxi_PhoneTooFar"
     end
 
+    PhoneSwap.syncDeclared()
     local key = keyOf(x, y, z)
     local record = PhoneSwap.store()[key]
     local square = getCell():getGridSquare(x, y, z)
-    if record and square then
-        local standing = false
-        local objects = square:getObjects()
-        for i = 0, objects:size() - 1 do
-            local sprite = objects:get(i):getSprite()
-            if sprite and Core.phoneFacing(sprite:getName()) then
-                standing = true
-                break
-            end
-        end
-        if not standing then
+    if square then
+        local ours, oursName = phonesOn(square)
+        if record and not ours then
             PhoneSwap.forget(x, y, z)
             record = nil
+        elseif ours and not record then
+            -- Put down on a square that had already loaded, so LoadGridsquare
+            -- never saw it.
+            PhoneSwap.recordStanding(square, oursName)
+            record = PhoneSwap.store()[key]
         end
     end
     if not record then
-        return nil, "IGUI_PhunSpawn_PhoneDead"
+        return nil, "IGUI_PhunTaxi_PhoneDead"
     end
     return key, record
 end

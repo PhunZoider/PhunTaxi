@@ -2,11 +2,11 @@
 setlocal enabledelayedexpansion
 
 rem ---------------------------------------------------------------------------
-rem PhunSpawn map iteration: export -> repo -> check -> deploy -> reset.
+rem PhunTaxi map iteration: export -> repo -> check -> deploy -> reset.
 rem   setx PS_MAPSRC "D:\pz-dev\maps\pi5\lots_phunspawn"
-rem   map.cmd                      sync, check, deploy, reset the test save
-rem   map.cmd Sandbox\maptest      same, resetting that save instead
-rem   map.cmd -                    sync, check, deploy; reset nothing
+rem   scripts\map.cmd                  sync, check, deploy, reset the test save
+rem   scripts\map.cmd Sandbox\maptest  same, resetting that save instead
+rem   scripts\map.cmd -                sync, check, deploy; reset nothing
 rem
 rem   PS_MAPSRC    the editor's export folder for THIS map. Never lots\ --
 rem                that is PhunInteriors' PI_MAPSRC and its map.cmd copies the
@@ -29,9 +29,11 @@ rem This script runs it as well, but by then the lotpacks are written and it can
 rem only repair the project for the next export.
 rem ---------------------------------------------------------------------------
 
-set SRC=%~dp0
+rem This file lives in scripts, one below the repo root. SRC is the root, with
+rem a trailing backslash, and SELF the same without one.
+for %%I in ("%~dp0..") do set "SRC=%%~fI\"
 set SELF=%SRC:~0,-1%
-set MAPS=%SRC%Contents\mods\PhunSpawn\common\media\maps\phunspawn
+set MAPS=%SRC%Contents\mods\PhunTaxi\common\media\maps\phuntaxi
 if not defined PI_REPO set PI_REPO=%SRC%..\PhunInteriors
 pushd "%SRC%"
 
@@ -116,7 +118,7 @@ if not defined PERL (
 )
 
 rem --- Deploy ----------------------------------------------------------------
-call "%SRC%deploy.cmd"
+call "%SRC%scripts\deploy.cmd"
 
 rem --- Reset -----------------------------------------------------------------
 set SAVE=%~1

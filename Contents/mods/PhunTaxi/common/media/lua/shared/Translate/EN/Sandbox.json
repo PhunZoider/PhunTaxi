@@ -1,55 +1,55 @@
 {
-    "Sandbox_PhunSpawn": "PhunSpawn",
+    "Sandbox_PhunTaxi": "PhunTaxi",
 
-    "Sandbox_PhunSpawn_Debug": "Debug",
-    "Sandbox_PhunSpawn_Debug_tooltip": "Verbose logging for point registration, discovery and spawning",
+    "Sandbox_PhunTaxi_Debug": "Debug",
+    "Sandbox_PhunTaxi_Debug_tooltip": "Verbose logging for point registration, discovery and spawning",
 
-    "Sandbox_PhunSpawn_UseSpawnRoom": "Wake Up Indoors",
-    "Sandbox_PhunSpawn_UseSpawnRoom_tooltip": "If yes, a new character wakes up in an off grid arrival room rather than on the spawn square, so the first thirty seconds are theirs. Needs PhunInteriors; with it absent the character is placed at the point itself",
+    "Sandbox_PhunTaxi_UseSpawnRoom": "Wake Up Indoors",
+    "Sandbox_PhunTaxi_UseSpawnRoom_tooltip": "If yes, a new character wakes up in the Taxi Garage, an off grid room, and takes one free taxi ride to a place they know. If no, or when there is no room free, they are placed straight at the last place their player chose, or a start point they know",
 
-    "Sandbox_PhunSpawn_DiscoveryRadius": "Place Discovery Range",
-    "Sandbox_PhunSpawn_DiscoveryRadius_tooltip": "How close you have to get to a spawn point that is a place rather than a pay phone before you remember it. There is nothing at a place to pick up, so this cannot be 0. Pay phones have their own range",
+    "Sandbox_PhunTaxi_DiscoveryRadius": "Place Discovery Range",
+    "Sandbox_PhunTaxi_DiscoveryRadius_tooltip": "How close you have to get to a spawn point that is a place rather than a pay phone before you remember it. There is nothing at a place to pick up, so this cannot be 0. Pay phones have their own range",
 
-    "Sandbox_PhunSpawn_ShowUndiscovered": "Show Undiscovered Points",
-    "Sandbox_PhunSpawn_ShowUndiscovered_tooltip": "If yes, places you have not found are listed greyed out, so the list is somewhere to head for. If no, they are not sent to your client at all",
+    "Sandbox_PhunTaxi_ShowUndiscovered": "Show Undiscovered Points",
+    "Sandbox_PhunTaxi_ShowUndiscovered_tooltip": "If yes, places you have not found are listed greyed out, so the list is somewhere to head for. If no, they are not sent to your client at all",
 
-    "Sandbox_PhunSpawn_AllowBuiltPoints": "Allow Player Pay Phones",
-    "Sandbox_PhunSpawn_AllowBuiltPoints_tooltip": "If yes, a player may build a pay phone from a crafted kit, for anybody to find and use",
+    "Sandbox_PhunTaxi_AllowBuiltPoints": "Allow Player Pay Phones",
+    "Sandbox_PhunTaxi_AllowBuiltPoints_tooltip": "If yes, a player may build a pay phone from a crafted kit, for anybody to find and use",
 
-    "Sandbox_PhunSpawn_BuiltPointLimit": "Player Pay Phone Limit",
-    "Sandbox_PhunSpawn_BuiltPointLimit_tooltip": "How many pay phones one player may have standing at once. Set to 0 for no limit",
+    "Sandbox_PhunTaxi_BuiltPointLimit": "Player Pay Phone Limit",
+    "Sandbox_PhunTaxi_BuiltPointLimit_tooltip": "How many pay phones one player may have standing at once. Set to 0 for no limit",
 
-    "Sandbox_PhunSpawn_RespawnPenalty": "Respawn Costs Something",
-    "Sandbox_PhunSpawn_RespawnPenalty_tooltip": "If yes, choosing where to wake up costs the new character something. Off by default",
+    "Sandbox_PhunTaxi_RespawnPenalty": "Respawn Costs Something",
+    "Sandbox_PhunTaxi_RespawnPenalty_tooltip": "Not used yet. Reserved for a cost on choosing where to wake up, and has no effect in this version",
 
-    "Sandbox_PhunSpawn_PhoneChance": "Pay Phone Chance",
-    "Sandbox_PhunSpawn_PhoneChance_tooltip": "Percent chance a vanilla pay phone is replaced by one that is a spawn point, rolled once per phone the first time it loads. Set to 0 to turn the swap off",
+    "Sandbox_PhunTaxi_PhoneChance": "Pay Phone Chance",
+    "Sandbox_PhunTaxi_PhoneChance_tooltip": "Percent chance a vanilla pay phone is replaced by one that is a spawn point, rolled once per phone the first time it loads. Set to 0 to turn the swap off",
 
-    "Sandbox_PhunSpawn_PhoneDistance": "Pay Phone Spacing",
-    "Sandbox_PhunSpawn_PhoneDistance_tooltip": "No pay phone is replaced within this many squares of one that already has been. Set to 0 for no spacing",
+    "Sandbox_PhunTaxi_PhoneDistance": "Pay Phone Spacing",
+    "Sandbox_PhunTaxi_PhoneDistance_tooltip": "No pay phone is replaced within this many squares of one that already has been. Set to 0 for no spacing",
 
-    "Sandbox_PhunSpawn_PhoneRing": "Undiscovered Pay Phones Ring",
-    "Sandbox_PhunSpawn_PhoneRing_tooltip": "If yes, a pay phone you have not discovered yet rings now and then while you are near it, so it is easier to notice",
+    "Sandbox_PhunTaxi_PhoneRing": "Undiscovered Pay Phones Ring",
+    "Sandbox_PhunTaxi_PhoneRing_tooltip": "If yes, a pay phone you have not discovered yet rings now and then while you are near it, so it is easier to notice",
 
-    "Sandbox_PhunSpawn_PhoneRingRange": "Pay Phone Ring Range",
-    "Sandbox_PhunSpawn_PhoneRingRange_tooltip": "How close, in squares, you have to be for an undiscovered pay phone to ring for you",
+    "Sandbox_PhunTaxi_PhoneRingRange": "Pay Phone Ring Range",
+    "Sandbox_PhunTaxi_PhoneRingRange_tooltip": "How close, in squares, you have to be for an undiscovered pay phone to ring for you",
 
-    "Sandbox_PhunSpawn_BuiltPhoneDistance": "Built Pay Phone Spacing",
-    "Sandbox_PhunSpawn_BuiltPhoneDistance_tooltip": "A player cannot build a pay phone within this many squares of any other. Set to 0 for no spacing",
+    "Sandbox_PhunTaxi_BuiltPhoneDistance": "Built Pay Phone Spacing",
+    "Sandbox_PhunTaxi_BuiltPhoneDistance_tooltip": "A player cannot build a pay phone within this many squares of any other. Set to 0 for no spacing",
 
 
-    "Sandbox_PhunSpawn_PhoneDiscoverRadius": "Pay Phone Discovery Range",
-    "Sandbox_PhunSpawn_PhoneDiscoverRadius_tooltip": "How close, in squares, you have to get to a pay phone to remember it, and it rings once to say so. Set to 0 and you have to pick the phone up",
+    "Sandbox_PhunTaxi_PhoneDiscoverRadius": "Pay Phone Discovery Range",
+    "Sandbox_PhunTaxi_PhoneDiscoverRadius_tooltip": "How close, in squares, you have to get to a pay phone to remember it, and it rings once to say so. Set to 0 and you have to pick the phone up",
 
-    "Sandbox_PhunSpawn_TaxiFastTravel": "Taxi Between Pay Phones",
-    "Sandbox_PhunSpawn_TaxiFastTravel_tooltip": "If yes, a player can call a taxi from any pay phone they know to any other, for a fare. The first ride, out of the spawn room, is always free",
+    "Sandbox_PhunTaxi_TaxiFastTravel": "Taxi Between Pay Phones",
+    "Sandbox_PhunTaxi_TaxiFastTravel_tooltip": "If yes, a player can call a taxi from any pay phone they know to any other, for a fare. The first ride, out of the spawn room, is always free",
 
-    "Sandbox_PhunSpawn_TaxiCentsPerSquare": "Taxi Fare Per Square",
-    "Sandbox_PhunSpawn_TaxiCentsPerSquare_tooltip": "Cents of PhunMart change per square travelled. Needs PhunMart unless this and the minimum fare are both 0",
+    "Sandbox_PhunTaxi_TaxiCentsPerSquare": "Taxi Fare Per Square",
+    "Sandbox_PhunTaxi_TaxiCentsPerSquare_tooltip": "Cents of PhunMart change per square travelled. Needs PhunMart unless this and the minimum fare are both 0",
 
-    "Sandbox_PhunSpawn_TaxiMinimumFare": "Taxi Minimum Fare",
-    "Sandbox_PhunSpawn_TaxiMinimumFare_tooltip": "The least any taxi ride costs, in cents",
+    "Sandbox_PhunTaxi_TaxiMinimumFare": "Taxi Minimum Fare",
+    "Sandbox_PhunTaxi_TaxiMinimumFare_tooltip": "The least any taxi ride costs, in cents",
 
-    "Sandbox_PhunSpawn_TaxiZombieRadius": "No Taxi Near Zombies",
-    "Sandbox_PhunSpawn_TaxiZombieRadius_tooltip": "A taxi will not come while a zombie is within this many squares. Set to 0 to turn this off"
+    "Sandbox_PhunTaxi_TaxiZombieRadius": "No Taxi Near Zombies",
+    "Sandbox_PhunTaxi_TaxiZombieRadius_tooltip": "A taxi will not come while a zombie is within this many squares. Set to 0 to turn this off"
 }

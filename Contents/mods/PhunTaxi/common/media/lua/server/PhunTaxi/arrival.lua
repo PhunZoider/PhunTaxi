@@ -1,11 +1,11 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/interiors"
-local Core = PhunSpawn
-local Unlocks = require "PhunSpawn/unlocks"
-local Placement = require "PhunSpawn/placement"
+require "PhunTaxi/points"
+require "PhunTaxi/interiors"
+local Core = PhunTaxi
+local Unlocks = require "PhunTaxi/unlocks"
+local Placement = require "PhunTaxi/placement"
 local Arrival = {}
 
 -- ---------------------------------------------------------------------------
@@ -28,10 +28,8 @@ local Arrival = {}
 -- is no "Step outside" to walk out of a free choice with. `returnTo` is still
 -- passed, for PhunInteriors' own rescue of somebody stranded in a slot.
 --
--- TODO: PhunInteriors.enterRoom does not exist yet; this is written against
--- the brief for it. Until it does, a pending character is placed at their
--- fallback point instead, which is what UseSpawnRoom's tooltip promises when
--- the room is unavailable.
+-- When the room will not have them, a pending character is placed at their
+-- fallback point instead, which is what UseSpawnRoom's tooltip promises.
 -- ---------------------------------------------------------------------------
 
 -- Where a new character stands for the moment before they are moved: the
@@ -97,7 +95,7 @@ local function placeAt(player, point)
         x = point.x,
         y = point.y,
         z = point.z
-    }, "phunspawn", true)
+    }, "phuntaxi", true)
     if not ok then
         Core.logLn("fallback to " .. point.id .. " refused by PhunInteriors: " .. tostring(why))
         return false
@@ -105,7 +103,7 @@ local function placeAt(player, point)
     Placement.markSpawned(player)
     Unlocks.setLastChoice(player, point.id)
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_WokeUp",
+        text = "IGUI_PhunTaxi_WokeUp",
         arg = point.label
     })
     triggerEvent(Core.events.OnSpawned, player, point)
@@ -138,7 +136,7 @@ function Arrival.admit(player)
     if PhunInteriors and PhunInteriors.enterRoom then
         local ok
         ok, why = PhunInteriors.enterRoom(player, Core.roomIds.arrival, {
-            reason = "phunspawn",
+            reason = "phuntaxi",
             share = true,
             exit = false,
             returnTo = fallback and {
@@ -153,7 +151,7 @@ function Arrival.admit(player)
             return "room"
         end
     else
-        why = "PhunInteriors.enterRoom is missing; PhunInteriors is older than this version of PhunSpawn needs"
+        why = "PhunInteriors.enterRoom is missing; PhunInteriors is older than this version of PhunTaxi needs"
     end
     Core.logLn("no arrival room for " .. tostring(key) .. ": " .. tostring(why))
 
@@ -193,7 +191,7 @@ function Arrival.collapseRegions(regions)
     -- `unemployed` is the list vanilla falls back on for every profession;
     -- its own fixed server spawn point is built the same way.
     regions[1] = {
-        name = "PhunSpawn",
+        name = "PhunTaxi",
         points = {
             unemployed = {{
                 posX = at.x,

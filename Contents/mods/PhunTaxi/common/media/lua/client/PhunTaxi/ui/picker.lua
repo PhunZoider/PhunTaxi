@@ -2,12 +2,12 @@ if isServer() then
     return
 end
 require "ISUI/ISCollapsableWindow"
-require "PhunSpawn/client_main"
-local Core = PhunSpawn
+require "PhunTaxi/client_main"
+local Core = PhunTaxi
 local Client = Core.client
-local tools = require "PhunSpawn/ui/ui_utils"
-local ListPanel = require "PhunSpawn/ui/list_panel"
-local MapPanel = require "PhunSpawn/ui/map_panel"
+local tools = require "PhunTaxi/ui/ui_utils"
+local ListPanel = require "PhunTaxi/ui/list_panel"
+local MapPanel = require "PhunTaxi/ui/map_panel"
 
 -- ---------------------------------------------------------------------------
 -- The spawn point picker: the places this character knows, by city, on the
@@ -41,11 +41,11 @@ local PAD = math.max(10, math.floor(10 * FONT_SCALE))
 -- The list
 -- ---------------------------------------------------------------------------
 
-local PointList = ListPanel:derive("PhunSpawnPointList")
+local PointList = ListPanel:derive("PhunTaxiPointList")
 
 local function regionLabel(name)
     if name == "" then
-        return getText("IGUI_PhunSpawn_Elsewhere")
+        return getText("IGUI_PhunTaxi_Elsewhere")
     end
     return name
 end
@@ -64,7 +64,7 @@ function PointList:createChildren()
     self.list.doDrawItem = ListPanel.defaultDrawRow
     self.list:setOnMouseDownFunction(self, self.onRowClick)
 
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Place"), 0, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Place"), 0, {
         text = function(d)
             if d.kind == "region" then
                 return (d.name == self.expanded and "-  " or "+  ") .. d.label
@@ -81,7 +81,7 @@ function PointList:createChildren()
             return nil
         end
     })
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Known"), 0.7, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Known"), 0.7, {
         text = function(d)
             if d.kind == "region" then
                 if d.group.known < d.group.total then
@@ -90,14 +90,14 @@ function PointList:createChildren()
                 return tostring(d.group.known)
             end
             if not d.point.known then
-                return getText("IGUI_PhunSpawn_Undiscovered")
+                return getText("IGUI_PhunTaxi_Undiscovered")
             end
             return ""
         end,
         align = "right"
     })
 
-    self.spawnButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Spawn"), self.onSpawnClick, false)
+    self.spawnButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_Spawn"), self.onSpawnClick, false)
     -- Vanilla's green, as PhunInteriors' form Apply does. Guarded the same
     -- way, since it is a method on ISButton and not on every build's.
     if self.spawnButton.enableAcceptColor then
@@ -144,16 +144,16 @@ function PointList:refreshList()
     self:applyFilter()
 
     if Client.points == nil then
-        self.description = getText("IGUI_PhunSpawn_Desc_Loading")
+        self.description = getText("IGUI_PhunTaxi_Desc_Loading")
     elseif self.picker.taxi then
-        self.description = getText(#self.groups == 0 and "IGUI_PhunSpawn_Desc_TaxiNothing" or
-                                       "IGUI_PhunSpawn_Desc_Taxi")
+        self.description = getText(#self.groups == 0 and "IGUI_PhunTaxi_Desc_TaxiNothing" or
+                                       "IGUI_PhunTaxi_Desc_Taxi")
     elseif #self.groups == 0 then
-        self.description = getText("IGUI_PhunSpawn_Desc_Nothing")
+        self.description = getText("IGUI_PhunTaxi_Desc_Nothing")
     elseif Client.pending then
-        self.description = getText("IGUI_PhunSpawn_Desc_Pending")
+        self.description = getText("IGUI_PhunTaxi_Desc_Pending")
     else
-        self.description = getText("IGUI_PhunSpawn_Desc_Known")
+        self.description = getText("IGUI_PhunTaxi_Desc_Known")
     end
 
     if self.picker then
@@ -243,10 +243,10 @@ function PointList:prerender()
 
     -- In a taxi the button says what the ride costs. The server works the
     -- fare out again from the same sum and charges that; this is the quote.
-    local title = getText("IGUI_PhunSpawn_Btn_Spawn")
+    local title = getText("IGUI_PhunTaxi_Btn_Spawn")
     local fare = taxi and point and point.known and self.picker:fareTo(point)
     if fare and fare > 0 then
-        title = getText("IGUI_PhunSpawn_Btn_GoFare", Core.formatCents(fare))
+        title = getText("IGUI_PhunTaxi_Btn_GoFare", Core.formatCents(fare))
     end
     if self.spawnButton.title ~= title then
         self.spawnButton:setTitle(title)
@@ -263,7 +263,7 @@ function PointList:prerender()
     local enabled = point ~= nil and point.known and Client.canSpawn
     self.spawnButton:setEnable(enabled)
     if point and point.known and not Client.canSpawn then
-        self.spawnButton.tooltip = getText("IGUI_PhunSpawn_Tip_AlreadyPlaced")
+        self.spawnButton.tooltip = getText("IGUI_PhunTaxi_Tip_AlreadyPlaced")
     else
         self.spawnButton.tooltip = nil
     end
@@ -277,7 +277,7 @@ function PointList:onSpawnClick()
             return
         end
         local picker = self.picker
-        tools.confirm(getText("IGUI_PhunSpawn_Confirm_Taxi", point.label, Core.formatCents(picker:fareTo(point))),
+        tools.confirm(getText("IGUI_PhunTaxi_Confirm_Taxi", point.label, Core.formatCents(picker:fareTo(point))),
             function()
                 Client.taxi(taxi, point.id)
                 picker:close()
@@ -292,9 +292,9 @@ function PointList:onSpawnClick()
     -- a long walk back either way.
     local text
     if Client.pending then
-        text = getText("IGUI_PhunSpawn_Confirm_Spawn", point.label)
+        text = getText("IGUI_PhunTaxi_Confirm_Spawn", point.label)
     else
-        text = getText("IGUI_PhunSpawn_Confirm_Port", point.label)
+        text = getText("IGUI_PhunTaxi_Confirm_Port", point.label)
     end
     local picker = self.picker
     tools.confirm(text, function()
@@ -309,7 +309,7 @@ end
 -- The window
 -- ---------------------------------------------------------------------------
 
-local Picker = ISCollapsableWindow:derive("PhunSpawnPicker")
+local Picker = ISCollapsableWindow:derive("PhunTaxiPicker")
 Core.ui.picker = Picker
 -- One per split screen player, by player number.
 Picker.instances = {}
@@ -358,7 +358,7 @@ function Picker:new(x, y, width, height, player)
     o.player = player
     o.playerIndex = player:getPlayerNum()
     o.resizable = false
-    o.title = getText("IGUI_PhunSpawn_PickerTitle")
+    o.title = getText("IGUI_PhunTaxi_PickerTitle")
     -- The view is placed once, on the first payload that has anything in it,
     -- and after that belongs to the player.
     o.viewPlaced = false
@@ -392,10 +392,10 @@ function Picker:rows()
     if not self.taxi or not Client.points then
         return Client.points
     end
-    local here = Core.phonePointId(self.taxi.x, self.taxi.y, self.taxi.z)
+    local here = Core.phoneKey(self.taxi.x, self.taxi.y, self.taxi.z)
     local out = {}
     for _, point in ipairs(Client.points) do
-        if point.known and point.phone and point.id ~= here then
+        if point.known and point.phone and point.phone ~= here then
             table.insert(out, point)
         end
     end
@@ -421,7 +421,7 @@ function Picker:onListRefreshed()
     self.map:setPoints(self:rows())
     local point = self.list:selectedPoint()
     self.map:setSelected(point and point.id or nil, self.list.expanded)
-    self.title = getText("IGUI_PhunSpawn_PickerTitle")
+    self.title = getText("IGUI_PhunTaxi_PickerTitle")
 
     local rows = self:rows()
     if not self.viewPlaced and rows and #rows > 0 then

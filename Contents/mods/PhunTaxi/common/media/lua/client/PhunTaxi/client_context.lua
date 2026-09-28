@@ -1,15 +1,15 @@
 if isServer() then
     return
 end
-require "PhunSpawn/client_main"
-require "PhunSpawn/phones"
-require "PhunSpawn/client_phone"
-require "PhunSpawn/tools"
-require "PhunSpawn/phone_guards"
+require "PhunTaxi/client_main"
+require "PhunTaxi/phones"
+require "PhunTaxi/client_phone"
+require "PhunTaxi/tools"
+require "PhunTaxi/phone_guards"
 require "ISUI/ISTextBox"
 require "ISUI/ISToolTip"
-local Core = PhunSpawn
-local uiTools = require "PhunSpawn/ui/ui_utils"
+local Core = PhunTaxi
+local uiTools = require "PhunTaxi/ui/ui_utils"
 local Client = Core.client
 
 -- ---------------------------------------------------------------------------
@@ -72,16 +72,17 @@ end
 -- store file on the server, so they survive a wipe. In a submenu so an
 -- admin's menu does not grow by three lines for every click.
 --
--- Only in ADMIN MODE: the movables or build cheat, the same switch the phone
--- guards read (Core.phoneAdminMode). An admin playing normally does not want
--- setup options on every right click, and turning admin mode on is already
--- what they do to move things about. On top of that the player must be an
+-- Only once the admin has turned it on, with the editor's "Setup menu"
+-- button (Client.setupMenu). An admin playing normally does not want setup
+-- options on every right click, so it starts off each session. It used to
+-- follow admin mode (the movables or build cheat), and that tied it to a
+-- switch admins flip for other reasons. On top of that the player must be an
 -- admin or moderator on a server, or in debug mode in single player, where
 -- tools.isAdmin says yes to everybody. The server checks rights again.
 -- ---------------------------------------------------------------------------
 
 local function isSetupAdmin(player)
-    if not Core.phoneAdminMode(player) then
+    if not Client.setupMenu then
         return false
     end
     if Core.isLocal and not (isDebugEnabled and isDebugEnabled()) then
@@ -147,7 +148,7 @@ local function onAddPoint(player, square)
     local width = math.floor(360 * uiTools.FONT_SCALE)
     local height = math.floor(180 * uiTools.FONT_SCALE)
     local modal = ISTextBox:new((getCore():getScreenWidth() - width) / 2, (getCore():getScreenHeight() - height) / 2,
-        width, height, getText("IGUI_PhunSpawn_Prompt_AddPoint", x .. ", " .. y .. ", " .. z), "", nil,
+        width, height, getText("IGUI_PhunTaxi_Prompt_AddPoint", x .. ", " .. y .. ", " .. z), "", nil,
         function(_, button)
             if button.internal ~= "OK" then
                 return
@@ -175,7 +176,7 @@ local function addSetupMenu(player, context, worldObjects)
     if not square then
         return
     end
-    local parent = context:addOption(getText("ContextMenu_PhunSpawn_Setup"))
+    local parent = context:addOption(getText("ContextMenu_PhunTaxi_Setup"))
     local sub = ISContextMenu:getNew(context)
     context:addSubMenu(parent, sub)
 
@@ -183,16 +184,16 @@ local function addSetupMenu(player, context, worldObjects)
     -- there, facing the admin, and its spawn point goes where they stand.
     local phoneSquare = findAnyPhone(worldObjects)
     if phoneSquare then
-        sub:addOption(getText("ContextMenu_PhunSpawn_KeepPhone"), player, onKeepPhone, phoneSquare)
+        sub:addOption(getText("ContextMenu_PhunTaxi_KeepPhone"), player, onKeepPhone, phoneSquare)
     else
         local facing = facingToward(player, square)
-        local option = sub:addOption(getText("ContextMenu_PhunSpawn_AddPhone"), player, onKeepPhone, square,
+        local option = sub:addOption(getText("ContextMenu_PhunTaxi_AddPhone"), player, onKeepPhone, square,
             facing)
         if not facing then
-            disable(option, getText("IGUI_PhunSpawn_Tip_StandBeside"))
+            disable(option, getText("IGUI_PhunTaxi_Tip_StandBeside"))
         end
     end
-    sub:addOption(getText("ContextMenu_PhunSpawn_AddPoint"), player, onAddPoint, square)
+    sub:addOption(getText("ContextMenu_PhunTaxi_AddPoint"), player, onAddPoint, square)
 end
 
 --- "Install pay phone", for a player carrying a kit, on a square with no
@@ -209,10 +210,10 @@ local function addBuildOption(player, context, worldObjects)
         return
     end
     local facing = facingToward(player, square)
-    local option = context:addOption(getText("ContextMenu_PhunSpawn_BuildPhone"), player, Client.queueBuildPhone,
+    local option = context:addOption(getText("ContextMenu_PhunTaxi_BuildPhone"), player, Client.queueBuildPhone,
         square, facing, kit)
     if not facing then
-        disable(option, getText("IGUI_PhunSpawn_Tip_StandBeside"))
+        disable(option, getText("IGUI_PhunTaxi_Tip_StandBeside"))
     end
 end
 
@@ -222,21 +223,25 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObje
         return
     end
 
-    -- Offered for any phone of ours, including one a player carried here from
-    -- somewhere else. Whether it is a spawn point is the server's answer.
+    -- Offered for any phone of ours this player does not know yet, including
+    -- one an admin just put down. Whether it is a spawn point is the server's
+    -- answer.
     local phone = findPhone(worldObjects)
     if phone then
-        context:addOption(getText("ContextMenu_PhunSpawn_UsePhone"), player, onUsePhone, phone)
-        -- Fast travel, when the server has it on. The fare and every check
-        -- are the server's; see server/rides.lua.
-        if Core.settings.TaxiFastTravel then
-            context:addOption(getText("ContextMenu_PhunSpawn_CallTaxi"), player, Client.queueTaxi, phone)
+        if not Client.knowsPhone(phone) then
+            context:addOption(getText("ContextMenu_PhunTaxi_UsePhone"), player, onUsePhone, phone)
+        end
+        -- Fast travel, when the server has it on, from a phone this player
+        -- has already found: picking it up comes first. The fare and every
+        -- check are the server's; see server/rides.lua.
+        if Core.settings.TaxiFastTravel and Client.knowsPhone(phone) then
+            context:addOption(getText("ContextMenu_PhunTaxi_CallTaxi"), player, Client.queueTaxi, phone)
         end
         -- The builder's own phone. The stamp is only what this menu reads;
         -- the server checks its record. Taking it down walks up and picks up
         -- the receiver first, which costs nothing and gets the builder there.
         if phone:getModData()[Core.consts.phoneOwnerKey] == Core.accountKey(player) then
-            context:addOption(getText("ContextMenu_PhunSpawn_TakeDown"), player, Client.queueUsePhone, phone,
+            context:addOption(getText("ContextMenu_PhunTaxi_TakeDown"), player, Client.queueUsePhone, phone,
                 Client.takeDownPhone)
         end
     else
@@ -245,12 +250,13 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObje
 
     -- The picker. For a player it is the taxi: offered only on a taxi tile,
     -- which stands in the spawn room, so a new character takes a ride out.
-    -- An admin in admin mode gets it anywhere, as a map of every point they
-    -- know. Whether Go works is the server's decision, not this menu's.
+    -- An admin with the setup menu on gets it anywhere, as a map of every
+    -- point they know. Whether Go works is the server's
+    -- decision, not this menu's.
     if onTaxi(worldObjects) then
-        context:addOption(getText("ContextMenu_PhunSpawn_Taxi"), player, onOpenPicker)
+        context:addOption(getText("ContextMenu_PhunTaxi_Taxi"), player, onOpenPicker)
     elseif isSetupAdmin(player) then
-        context:addOption(getText("ContextMenu_PhunSpawn_Points"), player, onOpenPicker)
+        context:addOption(getText("ContextMenu_PhunTaxi_Points"), player, onOpenPicker)
     end
 
     if not test and isSetupAdmin(player) then

@@ -1,6 +1,6 @@
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- The shipped spawn points.
@@ -10,10 +10,11 @@ local Core = PhunSpawn
 -- instead: both routes work, but theirs cannot be broken by load order. See
 -- README.md and interiors.lua for why.
 --
--- These are vanilla Muldraugh coordinates and they are PLACEHOLDERS. Every
--- one needs checking against the map before it ships, because a spawn point
--- on a square that is solid, or inside a wall built since, drops a new
--- character into geometry and there is nothing here that can tell.
+-- Each one has been checked in game: the square is open floor, and the square
+-- behind it, the way `phone` says, takes a pay phone. That phone is what
+-- makes a start point somewhere a taxi can be called from and ridden to. A
+-- point moved here needs both checked again, because nothing in code can
+-- tell a wall from a floor.
 --
 -- Sourced deliberately rather than by arithmetic: a set of points laid out on
 -- a grid would be three lines shorter and would put half of them in the
@@ -22,35 +23,62 @@ local Core = PhunSpawn
 
 Events[Core.events.OnRegisterPoints].Add(function()
 
-    Core.registerPoint("phun.spawn.muldraugh.warehouse", {
-        label = "Muldraugh - Warehouse",
+    Core.registerPoint("phun.spawn.muldraugh.smokeys", {
+        label = "Muldraugh - Smokeys",
         region = "Muldraugh",
-        x = 10608,
-        y = 9698,
+        x = 10629,
+        y = 9230,
         z = 0,
         -- Known from character creation: somewhere has to be, or a new
         -- character has nowhere at all to wake up.
         discovery = Core.discovery.start,
-        priority = 0
+        priority = 0,
+        -- The phone behind the arrival square, so the taxi can be called here.
+        phone = "E"
     })
 
-    Core.registerPoint("phun.spawn.westpoint.motel", {
-        label = "West Point - Motel",
-        region = "West Point",
-        x = 11780,
-        y = 6820,
+    Core.registerPoint("phun.spawn.rosewood.motel", {
+        label = "Rosewood - Motel",
+        region = "Rosewood",
+        x = 8190,
+        y = 11505,
         z = 0,
-        discovery = Core.discovery.explore
+        -- Known from character creation: somewhere has to be, or a new
+        -- character has nowhere at all to wake up.
+        discovery = Core.discovery.start,
+        priority = 0,
+        -- The phone behind the arrival square, so the taxi can be called here.
+        phone = "S"
     })
 
-    Core.registerPoint("phun.spawn.riverside.marina", {
-        label = "Riverside - Marina",
+    Core.registerPoint("phun.spawn.riverside.courthouse", {
+        label = "Riverside - Courthouse",
         region = "Riverside",
-        x = 6540,
-        y = 5250,
+        x = 6491,
+        y = 5459,
         z = 0,
-        discovery = Core.discovery.explore
+        -- Known from character creation: somewhere has to be, or a new
+        -- character has nowhere at all to wake up.
+        discovery = Core.discovery.start,
+        priority = 0,
+        -- The phone behind the arrival square, so the taxi can be called here.
+        phone = "S"
     })
+
+    Core.registerPoint("phun.spawn.westpoint.picnic", {
+        label = "West Point - Picnic Area",
+        region = "West Point",
+        x = 11622,
+        y = 6634,
+        z = 0,
+        -- Known from character creation: somewhere has to be, or a new
+        -- character has nowhere at all to wake up.
+        discovery = Core.discovery.start,
+        priority = 0,
+        -- The phone behind the arrival square, so the taxi can be called here.
+        phone = "E"
+    })
+
 end)
 
 return Core

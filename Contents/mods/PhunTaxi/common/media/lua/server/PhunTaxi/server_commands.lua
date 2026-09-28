@@ -1,16 +1,16 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/tools"
-local Core = PhunSpawn
-local Unlocks = require "PhunSpawn/unlocks"
-local Placement = require "PhunSpawn/placement"
-local PhoneSwap = require "PhunSpawn/phone_swap"
-local Store = require "PhunSpawn/store"
-local Rides = require "PhunSpawn/rides"
-local Building = require "PhunSpawn/building"
-local Arrival = require "PhunSpawn/arrival"
+require "PhunTaxi/points"
+require "PhunTaxi/tools"
+local Core = PhunTaxi
+local Unlocks = require "PhunTaxi/unlocks"
+local Placement = require "PhunTaxi/placement"
+local PhoneSwap = require "PhunTaxi/phone_swap"
+local Store = require "PhunTaxi/store"
+local Rides = require "PhunTaxi/rides"
+local Building = require "PhunTaxi/building"
+local Arrival = require "PhunTaxi/arrival"
 local Commands = {}
 
 -- ---------------------------------------------------------------------------
@@ -56,7 +56,7 @@ Commands[Core.commands.choose] = function(player, args)
     local id = args and args.id
     if not id or not Core.points[id] then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_NoSuchPoint"
+            text = "IGUI_PhunTaxi_NoSuchPoint"
         })
         return
     end
@@ -65,14 +65,14 @@ Commands[Core.commands.choose] = function(player, args)
         -- either a stale list or a modified one, and both cases deserve an
         -- answer the player can see.
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_NotDiscovered"
+            text = "IGUI_PhunTaxi_NotDiscovered"
         })
         return
     end
 
     Unlocks.setLastChoice(player, id)
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_ChoiceSet",
+        text = "IGUI_PhunTaxi_ChoiceSet",
         arg = Core.points[id].label
     })
 end
@@ -95,19 +95,19 @@ Commands[Core.commands.spawn] = function(player, args)
     local point = id and Core.points[id]
     if not point then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_NoSuchPoint"
+            text = "IGUI_PhunTaxi_NoSuchPoint"
         })
         return
     end
     if not Unlocks.has(player, id) then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_NotDiscovered"
+            text = "IGUI_PhunTaxi_NotDiscovered"
         })
         return
     end
     if not Placement.canSpawn(player) then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_AlreadyPlaced"
+            text = "IGUI_PhunTaxi_AlreadyPlaced"
         })
         return
     end
@@ -116,7 +116,7 @@ Commands[Core.commands.spawn] = function(player, args)
     -- choice still open, instead of arriving and being sent back.
     if Rides.safehouseBlocks(player, point.x, point.y) then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_TaxiSafehouse",
+            text = "IGUI_PhunTaxi_TaxiSafehouse",
             arg = point.label
         })
         return
@@ -126,9 +126,9 @@ Commands[Core.commands.spawn] = function(player, args)
     -- older than this mod. Said loudly: failing quietly here is a new
     -- character stuck in the arrival room with a button that does nothing.
     if not (PhunInteriors and PhunInteriors.sendTo) then
-        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunSpawn needs")
+        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunTaxi needs")
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_CannotGoThere"
+            text = "IGUI_PhunTaxi_CannotGoThere"
         })
         return
     end
@@ -140,13 +140,13 @@ Commands[Core.commands.spawn] = function(player, args)
         x = point.x,
         y = point.y,
         z = point.z
-    }, "phunspawn", true)
+    }, "phuntaxi", true)
     if not ok then
         -- Before anything is stamped, so a refused spawn leaves the choice
         -- open rather than using it up on a move that never happened.
         Core.logLn("spawn at " .. id .. " refused by PhunInteriors: " .. tostring(why))
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_CannotGoThere"
+            text = "IGUI_PhunTaxi_CannotGoThere"
         })
         return
     end
@@ -154,8 +154,9 @@ Commands[Core.commands.spawn] = function(player, args)
     Placement.markSpawned(player)
     Unlocks.setLastChoice(player, id)
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_WokeUp",
-        arg = point.label
+        text = "IGUI_PhunTaxi_WokeUp",
+        arg = point.label,
+        sound = Core.phones.driveOffSound
     })
     triggerEvent(Core.events.OnSpawned, player, point)
     Core.debugLn(tostring(Core.playerKey(player)) .. " spawned at " .. id)
@@ -175,7 +176,7 @@ Commands[Core.commands.buildPoint] = function(player, args)
         return
     end
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_PhoneBuilt",
+        text = "IGUI_PhunTaxi_PhoneBuilt",
         arg = point.label
     })
     sendPoints(player)
@@ -184,7 +185,7 @@ end
 Commands[Core.commands.takeDownPhone] = function(player, args)
     local ok, why = Building.takeDown(player, args)
     Core.respond(player, Core.commands.notify, {
-        text = ok and "IGUI_PhunSpawn_PhoneTakenDown" or why
+        text = ok and "IGUI_PhunTaxi_PhoneTakenDown" or why
     })
     if ok then
         sendPoints(player)
@@ -202,8 +203,9 @@ Commands[Core.commands.taxi] = function(player, args)
         return
     end
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_TaxiArrived",
-        arg = point.label
+        text = "IGUI_PhunTaxi_TaxiArrived",
+        arg = point.label,
+        sound = Core.phones.driveOffSound
     })
 end
 
@@ -225,12 +227,12 @@ Commands[Core.commands.usePhone] = function(player, args)
         Core.respond(player, Core.commands.unlocked, {
             id = point.id,
             label = point.label,
-            text = "IGUI_PhunSpawn_PhoneAnswered"
+            text = "IGUI_PhunTaxi_PhoneAnswered"
         })
         sendPoints(player)
     else
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_PhoneKnown",
+            text = "IGUI_PhunTaxi_PhoneKnown",
             arg = point.label
         })
     end
@@ -274,14 +276,14 @@ Commands[Core.commands.adminPort] = function(player, args)
     local point = id and Core.points[id]
     if not point then
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_NoSuchPoint"
+            text = "IGUI_PhunTaxi_NoSuchPoint"
         })
         return
     end
     if not (PhunInteriors and PhunInteriors.sendTo) then
-        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunSpawn needs")
+        Core.logLn("PhunInteriors.sendTo is missing; PhunInteriors is older than this version of PhunTaxi needs")
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_CannotGoThere"
+            text = "IGUI_PhunTaxi_CannotGoThere"
         })
         return
     end
@@ -289,16 +291,16 @@ Commands[Core.commands.adminPort] = function(player, args)
         x = point.x,
         y = point.y,
         z = point.z
-    }, "phunspawn_admin", false)
+    }, "phuntaxi_admin", false)
     if not ok then
         Core.logLn("admin port to " .. id .. " refused by PhunInteriors: " .. tostring(why))
         Core.respond(player, Core.commands.notify, {
-            text = "IGUI_PhunSpawn_CannotGoThere"
+            text = "IGUI_PhunTaxi_CannotGoThere"
         })
         return
     end
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_Ported",
+        text = "IGUI_PhunTaxi_Ported",
         arg = point.label
     })
     Core.logLn(tostring(Core.playerKey(player)) .. " ported to " .. id)
@@ -324,7 +326,7 @@ Commands[Core.commands.adminRename] = function(player, args)
     end
     Core.logLn(tostring(Core.playerKey(player)) .. " renamed " .. tostring(id) .. " to '" .. point.label .. "'")
     Core.respond(player, Core.commands.notify, {
-        text = "IGUI_PhunSpawn_Renamed",
+        text = "IGUI_PhunTaxi_Renamed",
         arg = point.label
     })
     sendAdminPoints(player)
@@ -361,7 +363,7 @@ Commands[Core.commands.adminAddPoint] = function(player, args)
     end
     local x, y, z = tonumber(args and args.x), tonumber(args and args.y), tonumber(args and args.z) or 0
     if not x or not y then
-        return refuse(player, "IGUI_PhunSpawn_NoSuchPoint")
+        return refuse(player, "IGUI_PhunTaxi_NoSuchPoint")
     end
     local region = PhoneSwap.locate(x, y)
     local point, why = Store.addPoint(x, y, z, args.label, region)
@@ -369,7 +371,7 @@ Commands[Core.commands.adminAddPoint] = function(player, args)
         return refuse(player, why)
     end
     Core.logLn(tostring(Core.playerKey(player)) .. " added " .. point.id .. " '" .. point.label .. "'")
-    done(player, "IGUI_PhunSpawn_PointAdded", point)
+    done(player, "IGUI_PhunTaxi_PointAdded", point)
 end
 
 Commands[Core.commands.adminRemovePoint] = function(player, args)
@@ -377,12 +379,25 @@ Commands[Core.commands.adminRemovePoint] = function(player, args)
         return
     end
     local id = args and args.id
-    local ok, why = Store.removePoint(id)
-    if not ok then
+    local point, tombstoned = Store.takeOut(id)
+    if not point then
+        return refuse(player, tombstoned)
+    end
+    Core.logLn(tostring(Core.playerKey(player)) .. (tombstoned and " deleted " or " removed ") .. tostring(id))
+    done(player, tombstoned and "IGUI_PhunTaxi_PointDeleted" or "IGUI_PhunTaxi_PointRemoved", point)
+end
+
+Commands[Core.commands.adminRestorePoint] = function(player, args)
+    if not Core.tools.isAdmin(player) then
+        return
+    end
+    local id = args and args.id
+    local point, why = Store.restorePoint(id)
+    if not point then
         return refuse(player, why)
     end
-    Core.logLn(tostring(Core.playerKey(player)) .. " removed " .. tostring(id))
-    done(player, "IGUI_PhunSpawn_PointRemoved")
+    Core.logLn(tostring(Core.playerKey(player)) .. " restored " .. tostring(id))
+    done(player, "IGUI_PhunTaxi_PointRestored", point)
 end
 
 Commands[Core.commands.adminSetKind] = function(player, args)
@@ -395,7 +410,7 @@ Commands[Core.commands.adminSetKind] = function(player, args)
         return refuse(player, why)
     end
     Core.logLn(tostring(Core.playerKey(player)) .. " set " .. tostring(id) .. " to " .. point.discovery)
-    done(player, "IGUI_PhunSpawn_KindSet", point)
+    done(player, "IGUI_PhunTaxi_KindSet", point)
 end
 
 --- "Keep this phone." By square from the context menu, or by point id from
@@ -412,7 +427,7 @@ Commands[Core.commands.adminKeepPhone] = function(player, args)
         x, y, z = record.x, record.y, record.z or 0
     end
     if not x or not y then
-        return refuse(player, "IGUI_PhunSpawn_NoPhoneHere")
+        return refuse(player, "IGUI_PhunTaxi_NoPhoneHere")
     end
     -- A facing only from the context menu's "Add phone and spawn point
     -- here", and only for a square with no phone on it yet.
@@ -421,7 +436,7 @@ Commands[Core.commands.adminKeepPhone] = function(player, args)
         return refuse(player, why)
     end
     Core.logLn(tostring(Core.playerKey(player)) .. " kept the pay phone " .. point.id)
-    done(player, "IGUI_PhunSpawn_PhoneKept", point)
+    done(player, "IGUI_PhunTaxi_PhoneKept", point)
 end
 
 Commands[Core.commands.adminReleasePhone] = function(player, args)
@@ -431,13 +446,13 @@ Commands[Core.commands.adminReleasePhone] = function(player, args)
     local key = PhoneSwap.keyOfPoint(args and args.id)
     local point, why = PhoneSwap.release(key)
     if not point then
-        return refuse(player, why or "IGUI_PhunSpawn_NotKept")
+        return refuse(player, why or "IGUI_PhunTaxi_NotKept")
     end
     Core.logLn(tostring(Core.playerKey(player)) .. " released the pay phone " .. point.id)
-    done(player, "IGUI_PhunSpawn_PhoneReleased", point)
+    done(player, "IGUI_PhunTaxi_PhoneReleased", point)
 end
 
---- Admin actions, reachable from the console as PhunSpawn.admin(action, args).
+--- Admin actions, reachable from the console as PhunTaxi.admin(action, args).
 --
 -- Every one re-checks admin rights here rather than trusting the caller, and
 -- the result goes back as lines for a log rather than as a structure, which

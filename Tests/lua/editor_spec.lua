@@ -10,17 +10,17 @@ local ROOT = os.getenv("PS_ROOT") or "."
 local stubs = dofile(ROOT .. "/Tests/lua/stubs.lua")
 stubs.install(ROOT)
 
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+local Core = PhunTaxi
 Core.logLn = function()
 end
 Core.debugLn = function()
 end
 
-local Unlocks = require "PhunSpawn/unlocks"
-local Placement = require "PhunSpawn/placement"
-local Commands = require "PhunSpawn/server_commands"
+local Unlocks = require "PhunTaxi/unlocks"
+local Placement = require "PhunTaxi/placement"
+local Commands = require "PhunTaxi/server_commands"
 local report = stubs.reporter()
 local check = report.check
 
@@ -103,10 +103,10 @@ check("and stores nothing either", Core.saved.labels["e.home"], nil)
 
 local point, why = Core.renamePoint("e.far", string.rep("x", Core.consts.labelMax + 1))
 check("an over long label is refused", point, nil)
-check("with a reason", why, "IGUI_PhunSpawn_LabelTooLong")
+check("with a reason", why, "IGUI_PhunTaxi_LabelTooLong")
 check("and changes nothing", Core.points["e.far"].label, "Far")
 point, why = Core.renamePoint("e.nowhere", "Somewhere")
-check("a point that does not exist cannot be renamed", why, "IGUI_PhunSpawn_NoSuchPoint")
+check("a point that does not exist cannot be renamed", why, "IGUI_PhunTaxi_NoSuchPoint")
 
 -- ---------------------------------------------------------------------------
 -- The admin payload is every point, with coordinates, found or not.
@@ -154,7 +154,7 @@ Commands[Core.commands.adminPort](boss, {id = "e.far"})
 check("an admin port goes through PhunInteriors", #sends, 1)
 check("to the point's square", sends[1] and sends[1].destination.y, 950)
 check("without giving up any room they hold", sends[1] and sends[1].release, false)
-check("and says where", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_Ported")
+check("and says where", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_Ported")
 check("it does not unlock the point", Unlocks.has(boss, "e.far"), false)
 check("or use up the choice", Placement.isPending(boss), true)
 check("or become the last choice", Unlocks.lastChoice(boss), nil)
@@ -162,7 +162,7 @@ check("or become the last choice", Unlocks.lastChoice(boss), nil)
 sent = {}
 Commands[Core.commands.adminPort](boss, {id = "e.nowhere"})
 check("a port to nowhere is refused", #sends, 1)
-check("and says so", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_NoSuchPoint")
+check("and says so", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_NoSuchPoint")
 
 sent = {}
 Commands[Core.commands.adminRename](boss, {id = "e.home", label = "Bunker"})
@@ -171,7 +171,7 @@ check("and the editor gets its list again", lastSent(Core.commands.adminPoints) 
 
 sent = {}
 Commands[Core.commands.adminRename](boss, {id = "e.home", label = {}})
-check("a label that is not a string is refused", lastSent(Core.commands.notify).text, "IGUI_PhunSpawn_BadLabel")
+check("a label that is not a string is refused", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_BadLabel")
 check("and changes nothing", Core.points["e.home"].label, "Bunker")
 
 Core.isLocal = true

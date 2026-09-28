@@ -23,7 +23,7 @@ fi
 
 status=0
 
-for f in $(find Contents/mods/PhunSpawn -name "*.lua"); do
+for f in $(find Contents/mods/PhunTaxi -name "*.lua"); do
     if ! "$LJ" -bl "$f" >/dev/null 2>&1; then
         echo "SYNTAX $f"
         "$LJ" -bl "$f" 2>&1 | head -3
@@ -44,22 +44,22 @@ clashes=$(perl -e '
     open(my $c, "<", $core) or die "no core.lua";
     my (%field, $on);
     while (<$c>) {
-        $on = 1, next if /^PhunSpawn = \{/;
+        $on = 1, next if /^PhunTaxi = \{/;
         next unless $on;
         last if /^\}/;
         $field{$1} = 1 if /^    ([A-Za-z_][A-Za-z0-9_]*)\s*=/;
     }
     die "core.lua declared no fields -- has the table moved?" unless %field;
     for my $f (@files) {
-        next if $f =~ m{shared/PhunSpawn/core\.lua$};
+        next if $f =~ m{shared/PhunTaxi/core\.lua$};
         open(my $h, "<", $f) or next;
         while (my $l = <$h>) {
-            next unless $l =~ /^(?:function\s+)?(?:Core|PhunSpawn)\.([A-Za-z0-9_]+)\s*(\(|=\s*function)/;
+            next unless $l =~ /^(?:function\s+)?(?:Core|PhunTaxi)\.([A-Za-z0-9_]+)\s*(\(|=\s*function)/;
             print "$f:$.: $1\n" if $field{$1};
         }
     }
-' Contents/mods/PhunSpawn/common/media/lua/shared/PhunSpawn/core.lua \
-  $(find Contents/mods/PhunSpawn -name "*.lua")) || status=1
+' Contents/mods/PhunTaxi/common/media/lua/shared/PhunTaxi/core.lua \
+  $(find Contents/mods/PhunTaxi -name "*.lua")) || status=1
 if [ -n "$clashes" ]; then
     echo "NAMESPACE a function is replacing a Core field declared in core.lua:"
     echo "$clashes"
@@ -73,8 +73,8 @@ fi
 # come to disagree -- which reads as a player losing an unlock they can see
 # they have.
 writes=$(grep -rn "Core\.unlocked\[[^]]*\] *=" --include="*.lua" \
-             Contents/mods/PhunSpawn \
-         | grep -v "server/PhunSpawn/unlocks\.lua:")
+             Contents/mods/PhunTaxi \
+         | grep -v "server/PhunTaxi/unlocks\.lua:")
 if [ -n "$writes" ]; then
     echo "UNLOCKS something outside unlocks.lua writes the unlock cache:"
     echo "$writes"
@@ -85,7 +85,7 @@ fi
 
 # A local redeclared at the top level of the same function. LuaJIT parses one
 # happily and the damage shows up somewhere else entirely -- see shadow.pl.
-shadows=$(perl Tests/shadow.pl $(find Contents/mods/PhunSpawn -name "*.lua"))
+shadows=$(perl scripts/shadow.pl $(find Contents/mods/PhunTaxi -name "*.lua"))
 if [ -n "$shadows" ]; then
     echo "SHADOW a local is being redeclared inside one function:"
     echo "$shadows"
@@ -100,7 +100,7 @@ fi
 # unexpanded, so the pattern becomes a literal string that this very file
 # contains, and the check reports itself.
 EMDASH=$(printf '\342\200\224')
-dashes=$(grep -rln "$EMDASH" Contents Tests README.md 2>/dev/null)
+dashes=$(grep -rln "$EMDASH" Contents Tests Docs scripts README.md CLAUDE.md workshop.txt 2>/dev/null)
 if [ -n "$dashes" ]; then
     echo "DASHES em dashes found in:"
     echo "$dashes"
@@ -109,25 +109,25 @@ else
     echo "dashes           no em dashes"
 fi
 
-# No globals but PhunSpawn. A `function name()` or `name = ...` at the top of a
+# No globals but PhunTaxi. A `function name()` or `name = ...` at the top of a
 # file with no `local` is a global, and in a game where every mod shares one
 # Lua state, a global is somebody else's bug waiting for the same name. Top
 # level only; the map folder's objects.lua is the game's format, not ours.
 globals=$(grep -rnE "^(function [A-Za-z_][A-Za-z0-9_]*\(|[A-Za-z_][A-Za-z0-9_]* *=[^=])" \
-              --include="*.lua" Contents/mods/PhunSpawn \
-          | grep -v "/media/maps/" | grep -v ":PhunSpawn = {")
+              --include="*.lua" Contents/mods/PhunTaxi \
+          | grep -v "/media/maps/" | grep -v ":PhunTaxi = {")
 if [ -n "$globals" ]; then
-    echo "GLOBALS something other than PhunSpawn is declared global:"
+    echo "GLOBALS something other than PhunTaxi is declared global:"
     echo "$globals"
     status=1
 else
-    echo "globals          nothing global but PhunSpawn"
+    echo "globals          nothing global but PhunTaxi"
 fi
 
 # Every translation file is JSON. B42 reads them as JSON, and one stray comma
 # loses the whole file: every key in it shows as its raw name.
 badjson=""
-for f in Contents/mods/PhunSpawn/common/media/lua/shared/Translate/*/*.json; do
+for f in Contents/mods/PhunTaxi/common/media/lua/shared/Translate/*/*.json; do
     err=$("$LJ" -e "
         package.path = '${PHUNINTERIORS:-../PhunInteriors}/Contents/mods/PhunInteriors/common/media/lua/shared/?.lua;' .. package.path
         local json = require('PhunInteriors/json')

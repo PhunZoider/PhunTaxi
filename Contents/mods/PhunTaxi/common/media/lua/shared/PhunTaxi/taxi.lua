@@ -1,5 +1,5 @@
-require "PhunSpawn/core"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- The taxi, the shared half: what a ride costs and what a taxi tile is.

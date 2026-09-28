@@ -1,13 +1,13 @@
 if isClient() then
     return
 end
-require "PhunSpawn/points"
-require "PhunSpawn/phones"
-require "PhunSpawn/tools"
-local Core = PhunSpawn
-local Unlocks = require "PhunSpawn/unlocks"
-local PhoneSwap = require "PhunSpawn/phone_swap"
-local Rides = require "PhunSpawn/rides"
+require "PhunTaxi/points"
+require "PhunTaxi/phones"
+require "PhunTaxi/tools"
+local Core = PhunTaxi
+local Unlocks = require "PhunTaxi/unlocks"
+local PhoneSwap = require "PhunTaxi/phone_swap"
+local Rides = require "PhunTaxi/rides"
 local Building = {}
 
 -- ---------------------------------------------------------------------------
@@ -52,17 +52,17 @@ end
 --- safehouses. Returns nil, or a translation key and what it names.
 function Building.refusal(player, x, y, z)
     if not Core.settings.AllowBuiltPoints then
-        return "IGUI_PhunSpawn_BuiltPointsOff"
+        return "IGUI_PhunTaxi_BuiltPointsOff"
     end
     local limit = Core.settings.BuiltPointLimit or 0
     if limit > 0 and Building.count(Core.accountKey(player)) >= limit then
-        return "IGUI_PhunSpawn_BuiltPointLimit", tostring(limit)
+        return "IGUI_PhunTaxi_BuiltPointLimit", tostring(limit)
     end
     if not PhoneSwap.farEnough(x, y, Core.settings.BuiltPhoneDistance or 0) then
-        return "IGUI_PhunSpawn_PhoneTooClose", tostring(Core.settings.BuiltPhoneDistance or 0)
+        return "IGUI_PhunTaxi_PhoneTooClose", tostring(Core.settings.BuiltPhoneDistance or 0)
     end
     if Rides.safehouseBlocks(player, x, y) then
-        return "IGUI_PhunSpawn_NotYourSafehouse"
+        return "IGUI_PhunTaxi_NotYourSafehouse"
     end
     return nil
 end
@@ -78,7 +78,7 @@ function Building.build(player, args)
     local x, y, z = tonumber(args and args.x), tonumber(args and args.y), tonumber(args and args.z) or 0
     local facing = args and args.facing
     if not x or not y or not Core.phones.front[facing] then
-        return nil, "IGUI_PhunSpawn_CannotBuildHere"
+        return nil, "IGUI_PhunTaxi_CannotBuildHere"
     end
     local why, arg = Building.refusal(player, x, y, z)
     if why then
@@ -87,11 +87,11 @@ function Building.build(player, args)
 
     local kit = args.item and player:getInventory():getItemById(args.item)
     if not kit or kit:getFullType() ~= Core.consts.phoneKitItem then
-        return nil, "IGUI_PhunSpawn_NoKit"
+        return nil, "IGUI_PhunTaxi_NoKit"
     end
     if math.abs(math.floor(player:getX()) - x) > REACH or math.abs(math.floor(player:getY()) - y) > REACH or
         math.floor(player:getZ()) ~= z then
-        return nil, "IGUI_PhunSpawn_PhoneTooFar"
+        return nil, "IGUI_PhunTaxi_PhoneTooFar"
     end
 
     -- The phone's own square, and the one in front, where a caller stands
@@ -100,14 +100,14 @@ function Building.build(player, args)
     local fx, fy = Core.phoneFront(x, y, facing)
     local front = getCell():getGridSquare(fx, fy, z)
     if not standable(square) or not standable(front) then
-        return nil, "IGUI_PhunSpawn_CannotBuildHere"
+        return nil, "IGUI_PhunTaxi_CannotBuildHere"
     end
     if Rides.safehouseBlocks(player, fx, fy) then
-        return nil, "IGUI_PhunSpawn_NotYourSafehouse"
+        return nil, "IGUI_PhunTaxi_NotYourSafehouse"
     end
     local ours, _, vanilla = PhoneSwap.phonesOn(square)
     if ours or vanilla then
-        return nil, "IGUI_PhunSpawn_PhoneAlreadyHere"
+        return nil, "IGUI_PhunTaxi_PhoneAlreadyHere"
     end
 
     local key = Core.accountKey(player)
@@ -115,7 +115,7 @@ function Building.build(player, args)
     if not (spriteName and PhoneSwap.replace(square, nil, spriteName, {
         [Core.consts.phoneOwnerKey] = key
     })) then
-        return nil, "IGUI_PhunSpawn_CannotBuildHere"
+        return nil, "IGUI_PhunTaxi_CannotBuildHere"
     end
 
     -- The kit is spent only now that the phone is up. PhunInteriors' reservoir
@@ -145,17 +145,17 @@ function Building.takeDown(player, args)
     local key = x and y and PhoneSwap.keyOf(x, y, z)
     local record = key and PhoneSwap.store()[key]
     if not record or not record.built then
-        return nil, "IGUI_PhunSpawn_NotYourPhone"
+        return nil, "IGUI_PhunTaxi_NotYourPhone"
     end
     if record.owner ~= Core.accountKey(player) and not Core.tools.isAdmin(player) then
-        return nil, "IGUI_PhunSpawn_NotYourPhone"
+        return nil, "IGUI_PhunTaxi_NotYourPhone"
     end
     if record.kept then
-        return nil, "IGUI_PhunSpawn_PhoneIsKept"
+        return nil, "IGUI_PhunTaxi_PhoneIsKept"
     end
     if math.abs(math.floor(player:getX()) - x) > REACH or math.abs(math.floor(player:getY()) - y) > REACH or
         math.floor(player:getZ()) ~= z then
-        return nil, "IGUI_PhunSpawn_PhoneTooFar"
+        return nil, "IGUI_PhunTaxi_PhoneTooFar"
     end
 
     local square = getCell():getGridSquare(x, y, z)

@@ -1,8 +1,8 @@
 if isServer() then
     return
 end
-require "PhunSpawn/core"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- UI constants and the few helpers the vendored list panel and the picker

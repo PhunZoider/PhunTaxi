@@ -1,5 +1,5 @@
-require "PhunSpawn/core"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
 -- The PhunZones hook: the Taxi Garage.
@@ -22,7 +22,7 @@ local Core = PhunSpawn
 -- ---------------------------------------------------------------------------
 
 -- The zone's key in PhunZones. Namespaced, since every map shares one table.
-local zoneKey = "PhunSpawn_TaxiGarage"
+local zoneKey = "PhunTaxi_TaxiGarage"
 
 local function phunZonesActive()
     local mods = getActivatedMods()

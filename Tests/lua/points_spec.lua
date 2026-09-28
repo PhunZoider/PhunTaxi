@@ -8,15 +8,15 @@ local ROOT = os.getenv("PS_ROOT") or "."
 local stubs = dofile(ROOT .. "/Tests/lua/stubs.lua")
 stubs.install(ROOT)
 
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+local Core = PhunTaxi
 Core.logLn = function()
 end
 Core.debugLn = function()
 end
 
-local Unlocks = require "PhunSpawn/unlocks"
+local Unlocks = require "PhunTaxi/unlocks"
 local report = stubs.reporter()
 local check = report.check
 

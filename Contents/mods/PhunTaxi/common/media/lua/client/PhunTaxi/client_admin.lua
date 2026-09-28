@@ -2,9 +2,9 @@ if isServer() then
     return
 end
 require "DebugUIs/DebugMenu/ISDebugMenu"
-require "PhunSpawn/tools"
-require "PhunSpawn/client_main"
-local Core = PhunSpawn
+require "PhunTaxi/tools"
+require "PhunTaxi/client_main"
+local Core = PhunTaxi
 local Client = Core.client
 
 -- ---------------------------------------------------------------------------
@@ -34,7 +34,7 @@ local function openEditor()
     end
     if not Core.tools.isAdmin(player) then
         Client.notify({
-            text = "IGUI_PhunSpawn_NotAdmin"
+            text = "IGUI_PhunTaxi_NotAdmin"
         })
         return
     end
@@ -44,7 +44,7 @@ end
 -- Single player, and anyone with debug enabled.
 local ISDebugMenu_setupButtons = ISDebugMenu.setupButtons
 function ISDebugMenu:setupButtons()
-    self:addButtonInfo("PhunSpawn", openEditor, "MAIN")
+    self:addButtonInfo("PhunTaxi", openEditor, "MAIN")
     ISDebugMenu_setupButtons(self)
 end
 
@@ -61,13 +61,13 @@ function ISAdminPanelUI:create()
     local UI_BORDER_SPACING = 10
     local BUTTON_HGT = FONT_HGT_SMALL + 6
 
-    self.phunSpawnEditor = ISButton:new(UI_BORDER_SPACING + 1, FONT_HGT_MEDIUM + UI_BORDER_SPACING * 2 + 1, 200,
-        BUTTON_HGT, getText("IGUI_PhunSpawn_EditorTitle"), self, openEditor)
-    self.phunSpawnEditor.internal = ""
-    self.phunSpawnEditor:initialise()
-    self.phunSpawnEditor:instantiate()
-    self.phunSpawnEditor.borderColor = self.buttonBorderColor
-    self:addChild(self.phunSpawnEditor)
+    self.phunTaxiEditor = ISButton:new(UI_BORDER_SPACING + 1, FONT_HGT_MEDIUM + UI_BORDER_SPACING * 2 + 1, 200,
+        BUTTON_HGT, getText("IGUI_PhunTaxi_EditorTitle"), self, openEditor)
+    self.phunTaxiEditor.internal = ""
+    self.phunTaxiEditor:initialise()
+    self.phunTaxiEditor:instantiate()
+    self.phunTaxiEditor.borderColor = self.buttonBorderColor
+    self:addChild(self.phunTaxiEditor)
 
     ISAdminPanelUI_create(self)
 end

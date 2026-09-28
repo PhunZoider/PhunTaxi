@@ -1,4 +1,4 @@
-# PhunSpawn
+# PhunTaxi
 
 Project Zomboid **B42** mod. Spawn points that are earned rather than listed:
 a character starts knowing a few and finds the rest by walking the map, and a
@@ -6,7 +6,7 @@ new character wakes up in an off grid room rather than on a kerb. SP and MP
 share one code path.
 
 Author: UburGeek. Part of the Phun mod family (PhunLib, PhunCure, PhunLewt,
-PhunZones, PhunInteriors, PhunMart2, PhunHub, PhunServer2...). GitHub org:
+PhunZones, PhunInteriors, PhunMart2, PhunRooms, PhunServer2...). GitHub org:
 `PhunZoider`.
 
 ## Status
@@ -15,9 +15,14 @@ PhunZones, PhunInteriors, PhunMart2, PhunHub, PhunServer2...). GitHub org:
 real verification of the registry and the unlock logic and no verification at
 all that PZ agrees. What exists is the registry, the unlock bookkeeping, the
 dispatch layer, the context menu, the picker (see Known gaps 5) and the
-translations. What does not is
-listed under "Not built" in README.md, and each one is marked `TODO` at the
-place it belongs.
+translations. What is unproven or missing is listed under "Known gaps" below,
+and each one is marked `TODO` at the place it belongs.
+
+The player, admin and modder docs are in `Docs/` (`playing`, `admin`,
+`sandbox-options`, `modding`, `how-it-works`), linked from README.md, and
+`workshop.txt` is the Workshop page. A change a player or an admin would
+notice (an option, a menu entry, a message, what survives a wipe) is not done
+until those say so too.
 
 The sibling mod to read before changing anything here is **PhunInteriors**.
 Its `CLAUDE.md` carries the B42 API table this family has paid for, and none
@@ -32,7 +37,7 @@ bash Tests/run.sh
 Parses every lua file with LuaJIT, then runs six static checks and the specs
 in `Tests/lua/`. Each static check catches a bug class LuaJIT cannot see:
 
-- **namespace**: no function shadowing a field declared on the `PhunSpawn`
+- **namespace**: no function shadowing a field declared on the `PhunTaxi`
   table in `core.lua`. A `function Core.points()` helper would *replace* the
   registry table at file load time, silently, and the first registration would
   index a function. That has happened in this family.
@@ -40,10 +45,10 @@ in `Tests/lua/`. Each static check catches a bug class LuaJIT cannot see:
   cache of the account record, and a copy maintained in two places
   disagrees with the truth.
 - **shadows**: no local redeclared at the top level of one function
-  (`Tests/shadow.pl`). LuaJIT parses one happily and the damage shows up
+  (`scripts/shadow.pl`). LuaJIT parses one happily and the damage shows up
   somewhere else entirely.
 - **dashes**: no em dashes. See House style.
-- **globals**: nothing declared global at the top of a file but `PhunSpawn`.
+- **globals**: nothing declared global at the top of a file but `PhunTaxi`.
   A `function name()` without `local` is the easy slip.
 - **json**: every translation file parses. One stray comma loses the whole
   file, and every key in it shows raw.
@@ -57,9 +62,13 @@ is tested in game or not at all. Add to it when you change registry or unlock
 logic; do not try to grow it into a simulator.
 
 Deployment is VS Code `emeraldwalk.runonsave` (see `.vscode/settings.json`),
-which runs `deploy.cmd` on every save and builds four trees: the playable mod,
-the test id variant `PhunSpawnTest`, and Workshop staging for each. `xclude`
-is the xcopy exclude list.
+which runs `scripts/deploy.cmd` on every save and builds four trees: the
+playable mod, the test id variant `PhunTaxiTest`, and Workshop staging for
+each. `xclude` is the xcopy exclude list. Every `.cmd` and `.pl` lives in
+`scripts/`, as in PhunInteriors, and each `.cmd` finds the repo root as its
+own parent folder. `scripts` cannot go in `xclude`: xcopy matches entries as
+substrings, and it would take `media/scripts/` with it, so `deploy.cmd`
+removes the staging copy's `scripts/` the way it removes `Tests/`.
 
 ## Layout
 
@@ -68,25 +77,32 @@ ships under `common/`. There is no root `mod.info` and no versioned (`42.x/`)
 folder.
 
 ```
-Contents/mods/PhunSpawn/common/
-  mod.info                  id=phunspawn, versionMin=42.0.0, require=phuninteriors
+Contents/mods/PhunTaxi/common/
+  mod.info                  id=phuntaxi, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
-  media/lua/shared/PhunSpawn/   core, tools, points, phones, phone_guards, taxi,
+  media/lua/shared/PhunTaxi/   core, tools, points, phones, phone_guards, taxi,
                                 interiors, zones, defaults
-  media/lua/server/PhunSpawn/   unlocks, placement, arrival, phone_swap, store,
+  media/lua/server/PhunTaxi/   unlocks, placement, arrival, phone_swap, store,
                                 rides, building, server_{commands,events}
-  media/lua/client/PhunSpawn/   client_{main,commands,context,events,phone,
-                                admin}
-  media/lua/client/PhunSpawn/ui/  picker, editor, map_panel, list_panel (vendored),
+  media/lua/client/PhunTaxi/   client_{main,commands,context,events,phone,
+                                taxi,admin}
+  media/lua/client/PhunTaxi/ui/  picker, editor, map_panel, list_panel (vendored),
                                   ui_utils
   media/lua/shared/Translate/EN/  ContextMenu, IG_UI, Sandbox, ItemName, Recipes (.json)
-  media/scripts/                 PhunSpawn_Items.txt (the kit and its recipe),
-                                 PhunSpawn_Sounds.txt
+  media/scripts/                 PhunTaxi_Items.txt (the kit and its recipe),
+                                 PhunTaxi_Sounds.txt
+  media/maps/phuntaxi/          the Taxi Garage cell, 87,49 (see Docs/map.md)
+
+Docs/                      player, admin, modder and map docs; see README.md
+scripts/deploy.cmd         the four deploy trees, run on every save
+scripts/map.cmd            sync a WorldEd export, check, deploy, reset a save
+scripts/tighten.{cmd,pl}   fix WorldEd's border lot rects, before exporting
+scripts/shadow.pl          the shadows static check, called by Tests/run.sh
 
 Tests/run.sh               syntax check, static checks and specs
 Tests/lua/stubs.lua        PZ globals, faked just enough to load
 Tests/lua/points_spec.lua  the registry, the sort, discovery and the payload
-Tests/lua/store_spec.lua   PhunSpawn.json: the wipe round trip, bad files,
+Tests/lua/store_spec.lua   PhunTaxi.json: the wipe round trip, bad files,
                            kept phones. Loads PhunInteriors' json.lua from
                            ../PhunInteriors (or $PHUNINTERIORS).
 Tests/lua/taxi_spec.lua    near discovery, fares, rides and every refusal,
@@ -95,7 +111,12 @@ Tests/lua/arrival_spec.lua who is put in the arrival room, the fallback when
                            there is no room, and the regions collapsing
 Tests/lua/zones_spec.lua   the Taxi Garage zone: its flags, and its rect
                            against the cell and objects.lua
-Tests/root/PhunSpawn/      overlay carrying the test id. The path must mirror
+Tests/lua/phones_spec.lua  the swap table, spacing, a swapped phone as a point
+Tests/lua/picker_spec.lua  region grouping and the once only spawn button
+Tests/lua/editor_spec.lua  renames surviving a reboot, and an admin port that
+                           grants nothing
+Tests/workshop.txt         the Workshop page for the test id
+Tests/root/PhunTaxi/      overlay carrying the test id. The path must mirror
                            the live mod folder or the overlay silently does
                            nothing.
 ```
@@ -108,8 +129,8 @@ House style, taken from PhunInteriors and PhunCure2:
   into it.
 - Server files open with `if isClient() then return end`, client files with
   `if isServer() then return end`. In SP both are false, so both load.
-- Everything hangs off the `PhunSpawn` global. **No other globals.**
-- **And nothing may be hung off `PhunSpawn` under a name `core.lua` already
+- Everything hangs off the `PhunTaxi` global. **No other globals.**
+- **And nothing may be hung off `PhunTaxi` under a name `core.lua` already
   declares.** `Tests/run.sh` refuses it.
 - Settings cached via `Core.getOption` and refreshed on `EveryTenMinutes`.
 - **No em dashes. Anywhere.** Not in this file, not in code comments, not in
@@ -163,6 +184,19 @@ every phone, limited per account, never in the store file, so a wipe takes
 it. Its owner key is also stamped on the object, but only for the client's
 "Take down" menu; the record decides.
 
+**A point can ask for a phone, and keeps its own id.** `registerPoint`'s
+`phone` (a facing) puts one of ours on the square behind the point, so a
+start point is a taxi stop. The server makes it a phone record owned by the
+point (`record.point`), treated as kept (never forgotten, put back when its
+square loads without it) and with no point of its own: using it grants the
+owner, a ride goes to and from the owner. `PhoneSwap.syncDeclared` follows
+`Core.registryVersion`, so a point registered late takes its phone over, and
+one deleted leaves it as an ordinary swapped phone. Because an owned phone's
+point id is not built from its square, **the client knows a phone by its
+square key** (`Core.phoneKey`), which the payload carries as `phone` on a
+known point, and a ride's destination is any point with a `phoneKey`, not a
+`used` one.
+
 **A starter is granted on read, not stamped once.** So a point added to the
 start set in a later version reaches existing characters and there is no
 migration to write.
@@ -180,6 +214,17 @@ the points in the river. A genuinely regular set is a `for` loop in the caller.
 **A removed point is filtered on read, not deleted from everybody.** So
 `removePoint` does not walk every character's list, and taking a point set out
 temporarily and putting it back costs nobody their exploring.
+
+**An admin deletes a point with a tombstone, as PhunZones does.** Code
+registers its points again on every boot, so deleting a shipped or third
+party point is an id in `PhunTaxi.json`'s `deleted`, and `registerPoint` puts
+a tombstoned id in `Core.deleted` instead of `Core.points`. Every reader looks
+in `Core.points` and needs no filter of its own; the graveyard exists for the
+editor to list and for Restore to put back. A point an admin added on a
+square is removed from the file instead (`Store.takeOut`), because a
+tombstone left behind would catch the next point added there. Phones are
+released or taken down, never tombstoned, and the last start point is
+refused.
 
 **Reverse indexes rebuild lazily**, on the first read after any registration.
 That is what lets a third party register from any vanilla hook, including one
@@ -204,7 +249,7 @@ map instancing, its tiles and textures (see `Docs/map.md`) and its way of
 moving a player, so there is no working mode without it. Older code and
 comments that guard for it being absent are from when it was a soft hook.
 
-**What an admin sets up lives in `PhunSpawn.json`, not in ModData.** Points
+**What an admin sets up lives in `PhunTaxi.json`, not in ModData.** Points
 added from the context menu, pay phones kept, and every rename. It is in the
 game's Lua folder, which a wipe does not touch, so the next world starts with
 them; ModData is in the save and goes with it. `server/store.lua` owns it,
@@ -263,19 +308,20 @@ dedicated server does not have.
    nothing has confirmed it for ours. Unlocks no longer depend on it (they are
    in global ModData), but `spawnedKey` does: if the client's copy wins, a
    character who rejoins is offered a second free choice.
-2. **The shipped points are placeholders.** Three vanilla Muldraugh, West
-   Point and Riverside coordinates that have not been checked against the map.
-   A spawn point on a solid square drops a new character into geometry and
-   nothing here can tell.
-3. **The arrival room ships no `locations`.** A room with no stamps registers
-   and allocates nothing, which is the honest state of affairs rather than a
-   failure. Fill it once the cells exist, reading origins out of the lotpacks
-   with PhunInteriors' `scripts/tiles.pl` rather than off a grid, and check with
-   `scripts/roomcheck.pl`.
+2. **The shipped points' phones have never been put up.** The four points in
+   `defaults.lua` and the squares behind them were checked in game by hand,
+   but each `phone` is put up by `PhoneSwap.restore` on an empty square when
+   the square first loads, which is gap 10's unproven `replace` with no old
+   object. A point moved in code or in `PhunTaxi.json` needs both squares
+   checked again: nothing here can tell a wall from a floor.
+3. **The arrival room has one slot.** `interiors.lua` stamps it at 22276,
+   12565, 0, and it is shared when full (gap 12). Any more are read out of the
+   lotpacks with PhunInteriors' `scripts/tiles.pl` rather than off a grid, and
+   checked with its `scripts/roomcheck.pl` (`scripts/map.cmd` runs it).
 4. **The taxi and player built phones have never run in game.**
    `taxi_spec.lua` covers the order and outcome of every check without a
    square. Unproven, in order of risk:
-   - The recipe (`scripts/PhunSpawn_Items.txt`): that it parses, the item ids
+   - The recipe (`scripts/PhunTaxi_Items.txt`): that it parses, the item ids
      (`Base.ElectricWire`, `Base.SheetMetal`, `Base.ElectronicsScrap`,
      `Base.Screws`) and the `base:screwdriver` tag exist in B42, and it shows
      under Electrical at Electricity 4. The icon is borrowed
@@ -311,11 +357,11 @@ dedicated server does not have.
    `point.room` is ignored, the spawn square is not checked for being free,
    and there is no joypad support. A player opens it only as the taxi ("Take
    taxi ride" on a `phuninteriors_02_0` to `_39` tile, in the spawn room);
-   an admin in admin mode gets "Spawn points" anywhere. So a new character
+   an admin with the setup menu on gets "Spawn points" anywhere. So a new character
    who closes it must walk back to the taxi, and nothing checks that the
    spawn room has one.
 6. **`icon.png` and `poster.png` are missing.** `mod.info` names both, and
-   `Tests/root/PhunSpawn/common/` needs its own pair for the test id.
+   `Tests/root/PhunTaxi/common/` needs its own pair for the test id.
 7. **`workshop.txt` has an empty `id=`.** Fill on first publish.
 8. **The pay phone swap has never run in game.** PhunMart's vending machine
    swap applied to phones (`shared/.../phones.lua` for the table,
@@ -326,16 +372,19 @@ dedicated server does not have.
    and the ring, which is entirely client side (`client/.../client_phone.lua`):
    squares noted on the client's LoadGridsquare, known phones read from the
    points payload by `Core.phonePointId`, played through a free emitter with
-   `PhunSpawn_PhoneRinging`. A phone placed from an item rings too, since the
-   client cannot tell it was never recorded. The guards
+   `PhunTaxi_PhoneRinging`. The guards
    (`shared/.../phone_guards.lua`) cover pickup, rotate, dismantle,
    sledgehammer and cars (HitByCar is unset on our sprites); admin mode is
    the movables or build cheat, so **turn it off to test them**. Unproven that
    B42's server runs `isValid` on these actions as it completes them, which
    is why they are shared. A phone that still goes missing is forgotten the
-   next time its square loads, and one put down elsewhere is not a spawn point
-   ("The line is dead"). The walk goes to the square in front, falling back
-   to `luautils.walkAdj`.
+   next time its square loads. One of ours standing with no record (put down
+   from the item, or its record lost to a `global_mod_data.bin` wipe such as
+   `scripts/map.cmd`'s reset) is recorded when its square loads or when
+   somebody uses it (`PhoneSwap.recordStanding`): unspaced, unkept, a spawn
+   point like a built phone. "Pick up phone" is hidden once the point is in
+   the player's payload as known. The walk goes to the square in front,
+   falling back to `luautils.walkAdj`.
 9. **The admin editor has never been opened.** `client/.../ui/editor.lua`,
    opened from the admin panel and the debug menu (`client_admin.lua`, as in
    PhunInteriors), so in single player only in debug mode. Every registered
@@ -343,15 +392,19 @@ dedicated server does not have.
    sorted nearest first, the whole map beside it, and Go there, Rename and
    Reset name. Go there is `sendTo` without releasing any room, and grants nothing, sets no
    last choice and stamps no placement. A rename is an override in
-   `PhunSpawn.json` (`Core.saved.labels`), read by `registerPoint`, so it
+   `PhunTaxi.json` (`Core.saved.labels`), read by `registerPoint`, so it
    survives the next boot and a wipe; set back to the registered label it
-   is removed rather than stored. Players see a rename the next time their
+   is removed rather than stored. Remove, Delete and Restore share one
+   button, titled by row; deleted points are listed in a Deleted tab only
+   and get no map pin. Players see a rename the next time their
    picker asks for its list. Unproven: the `ISTextBox` callback shape
    (copied from PhunInteriors' `binding_form.lua`) and every map risk in
    gap 5.
-10. **`PhunSpawn.json` has never been written by the game.** The store,
-   the admin setup submenu on the context menu (admin mode only, and a new
-   phone faces the admin, from where they stand), and Keep, Release, Found by
+10. **`PhunTaxi.json` has never been written by the game.** The store,
+   the admin setup submenu on the context menu (only once the admin turns
+   it on with the editor's "Setup menu" button, a client flag that starts
+   off each session, and a new phone faces the admin, from where they
+   stand), and Keep, Release, Found by
    and Remove in the editor. Unproven, in order of risk: that a kept phone
    put on a square with nothing on it (`PhoneSwap.replace` with no old
    object) behaves as the swap does, and blocks movement;

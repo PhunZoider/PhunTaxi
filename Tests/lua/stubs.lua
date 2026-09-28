@@ -121,13 +121,13 @@ function stubs.install(root)
         }
     end
 
-    -- The mod's own require, resolving "PhunSpawn/x" against the three source
+    -- The mod's own require, resolving "PhunTaxi/x" against the three source
     -- trees the game merges into one. "PhunInteriors/x" resolves against a
     -- PhunInteriors checkout beside this one, since it is a hard dependency
     -- and its json is used rather than copied; PHUNINTERIORS points it
     -- elsewhere.
     local trees = {
-        PhunSpawn = root .. "/Contents/mods/PhunSpawn/common/media/lua/",
+        PhunTaxi = root .. "/Contents/mods/PhunTaxi/common/media/lua/",
         PhunInteriors = (os.getenv("PHUNINTERIORS") or (root .. "/../PhunInteriors")) ..
             "/Contents/mods/PhunInteriors/common/media/lua/"
     }
@@ -135,7 +135,7 @@ function stubs.install(root)
     function require(path)
         if loaded[path] then return loaded[path] end
         loaded[path] = true
-        local lua = trees[path:match("^([^/]+)/")] or trees.PhunSpawn
+        local lua = trees[path:match("^([^/]+)/")] or trees.PhunTaxi
         for _, dir in ipairs({"shared/", "server/", "client/"}) do
             local file = lua .. dir .. path .. ".lua"
             local fh = io.open(file, "r")

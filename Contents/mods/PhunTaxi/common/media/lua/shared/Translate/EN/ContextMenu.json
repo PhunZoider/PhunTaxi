@@ -1,12 +1,12 @@
 {
-    "ContextMenu_PhunSpawn_Points": "Spawn points",
-    "ContextMenu_PhunSpawn_Taxi": "Take taxi ride",
-    "ContextMenu_PhunSpawn_UsePhone": "Pick up the phone",
-    "ContextMenu_PhunSpawn_Setup": "Spawn point setup",
-    "ContextMenu_PhunSpawn_AddPhone": "Add phone and spawn point here",
-    "ContextMenu_PhunSpawn_AddPoint": "Add just spawn point here",
-    "ContextMenu_PhunSpawn_KeepPhone": "Store this payphone",
-    "ContextMenu_PhunSpawn_CallTaxi": "Call a taxi",
-    "ContextMenu_PhunSpawn_TakeDown": "Take down your pay phone",
-    "ContextMenu_PhunSpawn_BuildPhone": "Install pay phone"
+    "ContextMenu_PhunTaxi_Points": "Spawn points",
+    "ContextMenu_PhunTaxi_Taxi": "Take taxi ride",
+    "ContextMenu_PhunTaxi_UsePhone": "Pick up the phone",
+    "ContextMenu_PhunTaxi_Setup": "Spawn point setup",
+    "ContextMenu_PhunTaxi_AddPhone": "Add phone and spawn point here",
+    "ContextMenu_PhunTaxi_AddPoint": "Add just spawn point here",
+    "ContextMenu_PhunTaxi_KeepPhone": "Store this payphone",
+    "ContextMenu_PhunTaxi_CallTaxi": "Call a taxi",
+    "ContextMenu_PhunTaxi_TakeDown": "Take down your pay phone",
+    "ContextMenu_PhunTaxi_BuildPhone": "Install pay phone"
 }

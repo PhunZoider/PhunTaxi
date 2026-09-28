@@ -3,12 +3,12 @@ if isServer() then
 end
 require "ISUI/ISCollapsableWindow"
 require "ISUI/ISTextBox"
-require "PhunSpawn/client_main"
-local Core = PhunSpawn
+require "PhunTaxi/client_main"
+local Core = PhunTaxi
 local Client = Core.client
-local tools = require "PhunSpawn/ui/ui_utils"
-local ListPanel = require "PhunSpawn/ui/list_panel"
-local MapPanel = require "PhunSpawn/ui/map_panel"
+local tools = require "PhunTaxi/ui/ui_utils"
+local ListPanel = require "PhunTaxi/ui/list_panel"
+local MapPanel = require "PhunTaxi/ui/map_panel"
 
 -- ---------------------------------------------------------------------------
 -- The admin editor: every registered point, found or not, in one flat list on
@@ -18,7 +18,9 @@ local MapPanel = require "PhunSpawn/ui/map_panel"
 -- name to the one it was registered with. A pay phone can be Kept, so it is
 -- in the next world after a wipe, or Released. A point an admin added (from
 -- the context menu's setup submenu) can have its Kind changed or be Removed.
--- Every one of those is saved to PhunSpawn.json on the server. Nothing here decides anything: the
+-- Any other point that is not a phone, shipped or a third party's, can be
+-- Deleted, which tombstones it, and Restored from the Deleted tab.
+-- Every one of those is saved to PhunTaxi.json on the server. Nothing here decides anything: the
 -- server checks admin rights on every request, and a rename comes back as a
 -- fresh list rather than being applied to this copy, so what the rows show is
 -- what the server stored.
@@ -37,17 +39,17 @@ local PAD = math.max(10, math.floor(10 * FONT_SCALE))
 -- The list
 -- ---------------------------------------------------------------------------
 
-local EditorList = ListPanel:derive("PhunSpawnEditorList")
+local EditorList = ListPanel:derive("PhunTaxiEditorList")
 
 local function regionLabel(name)
     if not name or name == "" then
-        return getText("IGUI_PhunSpawn_Elsewhere")
+        return getText("IGUI_PhunTaxi_Elsewhere")
     end
     return name
 end
 
 local function kindLabel(discovery)
-    return getText("IGUI_PhunSpawn_Kind_" .. tostring(discovery))
+    return getText("IGUI_PhunTaxi_Kind_" .. tostring(discovery))
 end
 
 -- Squares, which is metres as far as anybody reading it is concerned. Flat,
@@ -84,13 +86,16 @@ function EditorList:createChildren()
 
     -- Flat, so every column can sort. The picker's cannot, because a sort
     -- would scatter its points away from the city rows they sit under.
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Name"), 0, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Name"), 0, {
         text = function(d)
             return d.point.label
         end,
         -- A renamed point is tinted, so what has been customised on this
         -- save reads at a glance, and Reset has somewhere obvious to apply.
         color = function(d)
+            if d.point.deleted then
+                return 0.55, 0.55, 0.55
+            end
             if d.point.renamed then
                 return 0.95, 0.8, 0.35
             end
@@ -98,24 +103,27 @@ function EditorList:createChildren()
         end,
         sort = true
     })
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Region"), 0.34, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Region"), 0.34, {
         text = function(d)
             return regionLabel(d.point.region)
         end,
         sort = true
     })
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Kind"), 0.52, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Kind"), 0.52, {
         -- Marked when it is in the store file, which is what survives a
         -- wipe: a point an admin added, or a phone they kept.
         text = function(d)
+            if d.point.deleted then
+                return getText("IGUI_PhunTaxi_Kind_Deleted", kindLabel(d.point.discovery))
+            end
             if d.point.saved then
-                return getText("IGUI_PhunSpawn_Kind_Saved", kindLabel(d.point.discovery))
+                return getText("IGUI_PhunTaxi_Kind_Saved", kindLabel(d.point.discovery))
             end
             return kindLabel(d.point.discovery)
         end,
         sort = true
     })
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Where"), 0.66, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Where"), 0.66, {
         text = function(d)
             local p = d.point
             return tostring(p.x) .. ", " .. tostring(p.y) .. ", " .. tostring(p.z or 0)
@@ -125,7 +133,7 @@ function EditorList:createChildren()
     -- they move or port. The ORDER is taken when the list is sorted, which is
     -- on a refresh or a header click, not every frame: rows that reshuffle
     -- under the mouse cannot be clicked.
-    self:addListColumn(getText("IGUI_PhunSpawn_Col_Distance"), 0.87, {
+    self:addListColumn(getText("IGUI_PhunTaxi_Col_Distance"), 0.87, {
         text = function(d)
             return distanceLabel(distanceTo(self.player, d.point))
         end,
@@ -142,7 +150,7 @@ function EditorList:createChildren()
     -- and every other kind would be buried under them in "All".
     self:addFilterTabs({{
         key = "all",
-        label = getText("IGUI_PhunSpawn_Tab_All")
+        label = getText("IGUI_PhunTaxi_Tab_All")
     }, {
         key = Core.discovery.start,
         label = kindLabel(Core.discovery.start)
@@ -154,29 +162,64 @@ function EditorList:createChildren()
         label = kindLabel(Core.discovery.used)
     }, {
         key = "other",
-        label = getText("IGUI_PhunSpawn_Tab_Other")
+        label = getText("IGUI_PhunTaxi_Tab_Other")
+    }, {
+        -- Out of every other tab, so a deleted point does not read as one
+        -- players can still find, and here to be Restored.
+        key = "deleted",
+        label = getText("IGUI_PhunTaxi_Tab_Deleted")
     }})
 
-    self.portButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Port"), self.onPortClick, true)
-    self.renameButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Rename"), self.onRenameClick, true)
-    self.resetButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_ResetName"), self.onResetClick, false)
-    -- Keep or Release for a phone, Kind and Remove for a point an admin
-    -- added. Enabled by row in prerender, since each means something for one
+    self.portButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_Port"), self.onPortClick, true)
+    self.renameButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_Rename"), self.onRenameClick, true)
+    self.resetButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_ResetName"), self.onResetClick, false)
+    -- Keep or Release for a phone, Kind for a point an admin added, and
+    -- Remove, Delete or Restore for any point that is not a phone. Enabled
+    -- and titled by row in prerender, since each means something for one
     -- sort of row only.
-    self.keepButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Release"), self.onKeepClick, false)
-    self.kindButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Kind"), self.onKindClick, false)
-    self.removeButton = self:addBottomButton(getText("IGUI_PhunSpawn_Btn_Remove"), self.onRemoveClick, false)
+    self.keepButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_Release"), self.onKeepClick, false)
+    self.kindButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_Kind"), self.onKindClick, false)
+    self.removeButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_Remove"), self.onRemoveClick, false)
+    -- Not about the selected row: whether right click offers Spawn point
+    -- setup. Here because this window is where an admin already is when
+    -- setting a world up. Titled in prerender, so it reads as the state.
+    self.setupButton = self:addBottomButton(getText("IGUI_PhunTaxi_Btn_SetupOff"), self.onSetupClick, false)
+    self.setupButton.tooltip = getText("IGUI_PhunTaxi_Tip_SetupMenu")
 end
 
 local function isPhone(point)
-    return point ~= nil and point.discovery == Core.discovery.used
+    return Core.isPhonePoint(point)
 end
 
 -- A point an admin added (or wrote into the file by hand). A kept phone is
 -- saved too, but it is kept and released, not removed.
 local function isAdded(point)
-    return point ~= nil and point.saved == true and not isPhone(point)
+    return point ~= nil and point.saved == true and not point.deleted and not isPhone(point)
 end
+
+-- What the remove button does to this row: "remove" from the file for good
+-- (a point added on a square), "delete" with a tombstone (anything else that
+-- is not a phone), "restore" a deleted one, or nil. The server decides the
+-- same way in Store.takeOut; this is only the button's title.
+local function removeAction(point)
+    if not point or isPhone(point) then
+        return nil
+    end
+    if point.deleted then
+        return "restore"
+    end
+    local prefix = Core.consts.customPrefix
+    if point.saved and point.id:sub(1, #prefix) == prefix then
+        return "remove"
+    end
+    return "delete"
+end
+
+local REMOVE_TITLES = {
+    remove = "IGUI_PhunTaxi_Btn_Remove",
+    delete = "IGUI_PhunTaxi_Btn_Delete",
+    restore = "IGUI_PhunTaxi_Btn_Restore"
+}
 
 -- The order Kind steps through. The three a point with nothing on the map
 -- can be found by.
@@ -193,7 +236,10 @@ end
 
 function EditorList:rowInFilterTab(d, tabKey)
     local discovery = d.point.discovery
-    if tabKey == "all" then
+    if (tabKey == "deleted") ~= (d.point.deleted == true) then
+        return false
+    end
+    if tabKey == "all" or tabKey == "deleted" then
         return true
     end
     if tabKey == "other" then
@@ -212,9 +258,13 @@ end
 
 function EditorList:refreshList()
     self:clearList()
-    local count, renamed, saved = 0, 0, 0
+    local count, renamed, saved, deleted = 0, 0, 0, 0
     for _, point in ipairs(Client.adminPoints or {}) do
-        count = count + 1
+        if point.deleted then
+            deleted = deleted + 1
+        else
+            count = count + 1
+        end
         if point.renamed then
             renamed = renamed + 1
         end
@@ -229,9 +279,10 @@ function EditorList:refreshList()
     self:applyFilter()
 
     if Client.adminPoints == nil then
-        self.description = getText("IGUI_PhunSpawn_Desc_Loading")
+        self.description = getText("IGUI_PhunTaxi_Desc_Loading")
     else
-        self.description = getText("IGUI_PhunSpawn_Desc_Editor", tostring(count), tostring(renamed), tostring(saved))
+        self.description = getText("IGUI_PhunTaxi_Desc_Editor", tostring(count), tostring(renamed), tostring(saved),
+            tostring(deleted))
     end
 
     if self.editor then
@@ -260,24 +311,43 @@ function EditorList:prerender()
     local point = self:selectedPoint()
     self.resetButton:setEnable(point ~= nil and point.renamed == true)
     if point and point.renamed then
-        self.resetButton.tooltip = getText("IGUI_PhunSpawn_Tip_ResetName", point.shippedLabel or "")
+        self.resetButton.tooltip = getText("IGUI_PhunTaxi_Tip_ResetName", point.shippedLabel or "")
     else
         self.resetButton.tooltip = nil
     end
 
     self.keepButton:setEnable(isPhone(point))
-    local keepTitle = getText(point and point.saved and "IGUI_PhunSpawn_Btn_Release" or "IGUI_PhunSpawn_Btn_Keep")
+    local keepTitle = getText(point and point.saved and "IGUI_PhunTaxi_Btn_Release" or "IGUI_PhunTaxi_Btn_Keep")
     if self.keepButton.title ~= keepTitle then
         self.keepButton:setTitle(keepTitle)
     end
     self.keepButton.tooltip = isPhone(point) and
-                                  getText(point.saved and "IGUI_PhunSpawn_Tip_Release" or "IGUI_PhunSpawn_Tip_Keep") or
+                                  getText(point.saved and "IGUI_PhunTaxi_Tip_Release" or "IGUI_PhunTaxi_Tip_Keep") or
                                   nil
 
     self.kindButton:setEnable(isAdded(point))
     self.kindButton.tooltip = isAdded(point) and
-                                  getText("IGUI_PhunSpawn_Tip_Kind", kindLabel(nextKind(point.discovery))) or nil
-    self.removeButton:setEnable(isAdded(point))
+                                  getText("IGUI_PhunTaxi_Tip_Kind", kindLabel(nextKind(point.discovery))) or nil
+
+    -- A deleted point is not in the registry, so there is nowhere to port.
+    self.portButton:setEnable(not (point and point.deleted))
+
+    local action = removeAction(point)
+    self.removeButton:setEnable(action ~= nil)
+    local removeTitle = getText(REMOVE_TITLES[action or "remove"])
+    if self.removeButton.title ~= removeTitle then
+        self.removeButton:setTitle(removeTitle)
+    end
+    self.removeButton.tooltip = action and getText("IGUI_PhunTaxi_Tip_" .. action) or nil
+
+    local setupTitle = getText(Client.setupMenu and "IGUI_PhunTaxi_Btn_SetupOn" or "IGUI_PhunTaxi_Btn_SetupOff")
+    if self.setupButton.title ~= setupTitle then
+        self.setupButton:setTitle(setupTitle)
+    end
+end
+
+function EditorList:onSetupClick()
+    Client.setupMenu = not Client.setupMenu
 end
 
 function EditorList:onKeepClick()
@@ -303,7 +373,10 @@ end
 
 function EditorList:onRemoveClick()
     local point = self:selectedPoint()
-    if isAdded(point) then
+    local action = removeAction(point)
+    if action == "restore" then
+        Client.adminRestorePoint(point.id)
+    elseif action then
         Client.adminRemovePoint(point.id)
     end
 end
@@ -325,7 +398,7 @@ function EditorList:onRenameClick()
     local width = math.floor(360 * FONT_SCALE)
     local height = math.floor(180 * FONT_SCALE)
     local modal = ISTextBox:new((getCore():getScreenWidth() - width) / 2, (getCore():getScreenHeight() - height) / 2,
-        width, height, getText("IGUI_PhunSpawn_Prompt_Rename", point.id), point.label, self, function(_, button)
+        width, height, getText("IGUI_PhunTaxi_Prompt_Rename", point.id), point.label, self, function(_, button)
             if button.internal ~= "OK" then
                 return
             end
@@ -355,7 +428,7 @@ end
 -- The window
 -- ---------------------------------------------------------------------------
 
-local Editor = ISCollapsableWindow:derive("PhunSpawnEditor")
+local Editor = ISCollapsableWindow:derive("PhunTaxiEditor")
 Core.ui.editor = Editor
 -- One per split screen player, by player number.
 Editor.instances = {}
@@ -399,7 +472,7 @@ function Editor:new(x, y, width, height, player)
     o.player = player
     o.playerIndex = player:getPlayerNum()
     o.resizable = false
-    o.title = getText("IGUI_PhunSpawn_EditorTitle")
+    o.title = getText("IGUI_PhunTaxi_EditorTitle")
     o.viewPlaced = false
     return o
 end
@@ -432,15 +505,18 @@ function Editor:onListRefreshed()
     end
     local pins = {}
     for _, point in ipairs(Client.adminPoints or {}) do
-        table.insert(pins, {
-            id = point.id,
-            label = point.label,
-            region = point.region,
-            x = point.x,
-            y = point.y,
-            z = point.z,
-            known = true
-        })
+        -- Not a deleted one: a pin reads as somewhere players can go.
+        if not point.deleted then
+            table.insert(pins, {
+                id = point.id,
+                label = point.label,
+                region = point.region,
+                x = point.x,
+                y = point.y,
+                z = point.z,
+                known = true
+            })
+        end
     end
     self.map:setPoints(pins)
     local point = self.list:selectedPoint()

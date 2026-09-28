@@ -8,18 +8,18 @@ local ROOT = os.getenv("PS_ROOT") or "."
 local stubs = dofile(ROOT .. "/Tests/lua/stubs.lua")
 stubs.install(ROOT)
 
-require "PhunSpawn/core"
-require "PhunSpawn/points"
-local Core = PhunSpawn
+require "PhunTaxi/core"
+require "PhunTaxi/points"
+local Core = PhunTaxi
 Core.logLn = function()
 end
 Core.debugLn = function()
 end
 
-local Unlocks = require "PhunSpawn/unlocks"
-local Placement = require "PhunSpawn/placement"
-local Arrival = require "PhunSpawn/arrival"
-local Commands = require "PhunSpawn/server_commands"
+local Unlocks = require "PhunTaxi/unlocks"
+local Placement = require "PhunTaxi/placement"
+local Arrival = require "PhunTaxi/arrival"
+local Commands = require "PhunTaxi/server_commands"
 -- Responses go nowhere. In SP Core.respond calls the client handlers, which
 -- need a game; what is said is not what is tested here.
 Core.respond = function()
@@ -138,7 +138,7 @@ check("both still there", #regions, 2)
 Arrival.landing = {x = 22000, y = 12500, z = 0}
 check("a landing square collapses them", Arrival.collapseRegions(regions), true)
 check("to one, so the selector skips itself", #regions, 1)
-check("in place", regions[1].name, "PhunSpawn")
+check("in place", regions[1].name, "PhunTaxi")
 check("at the landing square", regions[1].points.unemployed[1].posX, 22000)
 
 regions = {{name = "Muldraugh"}, {name = "Riverside"}}
@@ -147,7 +147,7 @@ regions = {{name = "Muldraugh"}, {name = "Riverside"}}
 local realOptions = getSandboxOptions
 getSandboxOptions = function()
     return {getOptionByName = function(_, name)
-        if name == "PhunSpawn.UseSpawnRoom" then
+        if name == "PhunTaxi.UseSpawnRoom" then
             return {getValue = function() return false end}
         end
         return nil
