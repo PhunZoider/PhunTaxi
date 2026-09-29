@@ -395,13 +395,13 @@ check("using it answers with the point", got and got.id, "d.diner")
 check("already known, as a start point", why, false)
 
 -- A swapped phone already standing where a point asks for one is taken over.
-PhoneSwap.add(4000, 4000, 0, "S", "phuninteriors_01_17")
+PhoneSwap.add(4000, 4000, 0, "S")
 check("a swapped phone has its own point", Core.points["phun.spawn.phone.4000_4000_0"] ~= nil, true)
 Core.registerPoint("d.station", {label = "Station", x = 4000, y = 4001, phone = "S"})
 PhoneSwap.syncDeclared()
 check("the point takes it over", PhoneSwap.store()["4000_4000_0"].point, "d.station")
 check("and its own point goes", Core.points["phun.spawn.phone.4000_4000_0"], nil)
-check("keeping its sprite", PhoneSwap.store()["4000_4000_0"].sprite, "phuninteriors_01_17")
+check("keeping its facing", PhoneSwap.store()["4000_4000_0"].facing, "S")
 
 -- The point going leaves the phone as an ordinary one, and coming back takes
 -- it again.

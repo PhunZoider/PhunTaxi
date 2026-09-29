@@ -127,7 +127,7 @@ function Building.build(player, args)
         sendRemoveItemFromContainer(container, kit)
     end
 
-    local point = PhoneSwap.add(x, y, z, facing, spriteName)
+    local point = PhoneSwap.add(x, y, z, facing)
     local record = PhoneSwap.store()[PhoneSwap.keyOf(x, y, z)]
     record.owner = key
     record.built = true

@@ -28,7 +28,7 @@ Core.modules.store = Store
 --           Any id is accepted, so a point of the same id as a shipped one
 --           replaces it, which is how a placeholder's square gets fixed
 --           without code.
---   phones  "x_y_z" -> {x, y, z, facing, sprite}
+--   phones  "x_y_z" -> {x, y, z, facing}
 --           Pay phones kept across wipes. `x, y, z` is the PHONE's square,
 --           as in a swap record, and `facing` is E, S, W or N, which puts
 --           the point on the square in front. When the square first loads
@@ -169,8 +169,7 @@ function Store.sanitise(doc)
                 x = x,
                 y = y,
                 z = z,
-                facing = facing,
-                sprite = type(def.sprite) == "string" and def.sprite or nil
+                facing = facing
             }
         end
     end
@@ -481,8 +480,7 @@ function Store.keepPhone(key, record)
         x = record.x,
         y = record.y,
         z = record.z or 0,
-        facing = record.facing,
-        sprite = record.sprite
+        facing = record.facing
     }
     return commit(function()
         Core.saved.phones[key] = was

@@ -1031,39 +1031,58 @@ function ListPanel:prerender()
                            (getTextManager():MeasureStringX(UIFont.Small, getText("IGUI_PhunTaxi_Lbl_Filter")) + 8) or 0
     local filterMinW = hasFilter and math.floor(150 * FONT_SCALE) or 0
 
-    local actionsW = self._closeBtn.width + PAD
+    -- The acting buttons, Close last, wrapped onto as many lines as the width
+    -- needs, each line right aligned. More buttons than one line holds used to
+    -- run off the left edge.
+    local actions = {}
     for _, btn in ipairs(self._bottomButtons) do
         if btn:isVisible() then
-            actionsW = actionsW + btn.width + PAD
+            table.insert(actions, btn)
+            if btn._requiresSelection then
+                btn:setEnable(hasSelection)
+            end
         end
     end
+    table.insert(actions, self._closeBtn)
+
+    local lines = {{}}
+    local lineW = 0
+    local actionsW = 0
+    for _, btn in ipairs(actions) do
+        local line = lines[#lines]
+        if #line > 0 and lineW + PAD + btn.width > w - PAD * 2 then
+            line = {}
+            table.insert(lines, line)
+            lineW = 0
+        end
+        lineW = lineW + (#line > 0 and PAD or 0) + btn.width
+        table.insert(line, btn)
+        actionsW = actionsW + btn.width + PAD
+    end
+
     local narrowW = PAD + filterLblW + filterMinW + PAD + (self._onlyChangedW or 0) + (self._hideTemplatesW or 0)
-    local twoRows = (narrowW + actionsW + PAD) > w
+    local twoRows = #lines > 1 or (narrowW + actionsW + PAD) > w
 
     local topY = PAD
-    local actionY = twoRows and (PAD * 2 + BUTTON_HGT) or PAD
+    local rows = #lines + (twoRows and 1 or 0)
 
     -- Button bar at bottom, tall enough for however many lines it needs.
-    local btnBarH = twoRows and (BUTTON_HGT * 2 + PAD * 3) or (BUTTON_HGT + PAD * 2)
+    local btnBarH = BUTTON_HGT * rows + PAD * (rows + 1)
     self._buttonBar:setX(0)
     self._buttonBar:setY(contentH - btnBarH)
     self._buttonBar:setWidth(w)
     self._buttonBar:setHeight(btnBarH)
 
     local rightX = w - PAD
-    self._closeBtn:setX(rightX - self._closeBtn.width)
-    self._closeBtn:setY(actionY)
-    rightX = rightX - self._closeBtn.width - PAD
-
-    for i = #self._bottomButtons, 1, -1 do
-        local btn = self._bottomButtons[i]
-        if btn:isVisible() then
+    for li, line in ipairs(lines) do
+        local row = li - 1 + (twoRows and 1 or 0)
+        local actionY = PAD + row * (BUTTON_HGT + PAD)
+        rightX = w - PAD
+        for i = #line, 1, -1 do
+            local btn = line[i]
             rightX = rightX - btn.width
             btn:setX(rightX)
             btn:setY(actionY)
-            if btn._requiresSelection then
-                btn:setEnable(hasSelection)
-            end
             rightX = rightX - PAD
         end
     end

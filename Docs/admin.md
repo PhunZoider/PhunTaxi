@@ -126,7 +126,9 @@ server copies the setup:
 - A point with the same id as a shipped one **replaces** it. That is how you
   move a shipped point that lands somewhere bad, without touching code.
 - A phone's `x, y, z` is **the phone's own square**. `facing` (E, S, W or N)
-  puts the traveller on the square in front of it.
+  puts the traveller on the square in front of it, and decides which phone
+  sprite goes up. A `sprite` left over in an older file is ignored and
+  dropped the next time the file is written.
 - `labels` renames any point by id, shipped or added.
 - `deleted` hides any point by id, shipped, another mod's or added. The code
   still registers it every boot and this keeps it out, so taking the line out

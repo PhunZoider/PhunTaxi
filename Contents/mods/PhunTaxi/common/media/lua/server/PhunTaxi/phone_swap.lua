@@ -163,7 +163,6 @@ function PhoneSwap.adopt()
                 y = phone.y,
                 z = phone.z or 0,
                 facing = phone.facing,
-                sprite = phone.sprite,
                 region = region,
                 subtitle = subtitle,
                 created = Core.now()
@@ -240,12 +239,9 @@ function PhoneSwap.syncDeclared()
             }
             store[key] = record
         end
-        if record.facing ~= point.phone then
-            -- The point says which way its phone faces; a sprite for the
-            -- other way would be put back facing the wall.
-            record.facing = point.phone
-            record.sprite = nil
-        end
+        -- The point says which way its phone faces, and so which sprite goes
+        -- back up.
+        record.facing = point.phone
         if record.point ~= point.id then
             record.point = point.id
             Core.removePoint(PhoneSwap.pointId(key))
@@ -277,7 +273,7 @@ function PhoneSwap.farEnough(x, y, distance)
 end
 
 --- Record a swapped phone and register it. Returns the point.
-function PhoneSwap.add(x, y, z, facing, spriteName)
+function PhoneSwap.add(x, y, z, facing)
     local key = keyOf(x, y, z)
     local region, subtitle = PhoneSwap.locate(x, y)
     local record = {
@@ -285,7 +281,6 @@ function PhoneSwap.add(x, y, z, facing, spriteName)
         y = y,
         z = z or 0,
         facing = facing,
-        sprite = spriteName,
         region = region,
         subtitle = subtitle,
         created = Core.now()
@@ -325,7 +320,7 @@ end
 function PhoneSwap.recordStanding(square, spriteName)
     local x, y, z = square:getX(), square:getY(), square:getZ()
     Core.logLn("pay phone at " .. keyOf(x, y, z) .. " had no record, so it is a spawn point now")
-    return PhoneSwap.add(x, y, z, Core.phoneFacing(spriteName), spriteName)
+    return PhoneSwap.add(x, y, z, Core.phoneFacing(spriteName))
 end
 
 --- Put our phone where `old` stands, or on the square when `old` is nil.
@@ -383,7 +378,7 @@ function PhoneSwap.roll(square, obj, facing)
     end
     local spriteName = Core.phoneSpriteFor(facing, ZombRand)
     if spriteName and PhoneSwap.replace(square, obj, spriteName) then
-        PhoneSwap.add(x, y, z, facing, spriteName)
+        PhoneSwap.add(x, y, z, facing)
     end
 end
 
@@ -438,18 +433,15 @@ function PhoneSwap.loadGridsquare(square)
 end
 
 --- Put a kept phone, or a point's, back on its square, replacing `old` when
---- that is a vanilla phone standing there. Its own sprite when that is still
---- one of ours facing its way, since a sprite dropped from the table since
---- would be put back as a phone nothing recognises.
+--- that is a vanilla phone standing there. The sprite is the facing's, never
+--- a stored one: a record carrying its own could disagree with its facing,
+--- or name a sprite since dropped from the table, which would be put back as
+--- a phone nothing recognises.
 function PhoneSwap.restore(square, record, old)
-    local spriteName = record.sprite
-    if not (spriteName and Core.phoneFacing(spriteName) == record.facing) then
-        spriteName = Core.phoneSpriteFor(record.facing, ZombRand)
-    end
+    local spriteName = Core.phoneSpriteFor(record.facing, ZombRand)
     if not (spriteName and PhoneSwap.replace(square, old, spriteName)) then
         return false
     end
-    record.sprite = spriteName
     Core.logLn((record.point and ("pay phone for " .. record.point) or "kept pay phone") .. " at " ..
                    keyOf(record.x, record.y, record.z) .. " put back")
     return true
@@ -499,21 +491,21 @@ function PhoneSwap.keep(x, y, z, facing)
     local ours, oursName, vanilla, vanillaFacing = phonesOn(square)
     if ours then
         if not PhoneSwap.store()[key] then
-            PhoneSwap.add(x, y, z, Core.phoneFacing(oursName), oursName)
+            PhoneSwap.add(x, y, z, Core.phoneFacing(oursName))
         end
     elseif vanilla then
         local spriteName = Core.phoneSpriteFor(vanillaFacing, ZombRand)
         if not (spriteName and PhoneSwap.replace(square, vanilla, spriteName)) then
             return nil, "IGUI_PhunTaxi_NoPhoneHere"
         end
-        PhoneSwap.add(x, y, z, vanillaFacing, spriteName)
+        PhoneSwap.add(x, y, z, vanillaFacing)
     elseif facing then
         -- No phone here at all, and the admin asked for one facing this way.
         local spriteName = Core.phoneSpriteFor(facing, ZombRand)
         if not (spriteName and PhoneSwap.replace(square, nil, spriteName)) then
             return nil, "IGUI_PhunTaxi_CannotPlacePhone"
         end
-        PhoneSwap.add(x, y, z, facing, spriteName)
+        PhoneSwap.add(x, y, z, facing)
     else
         return nil, "IGUI_PhunTaxi_NoPhoneHere"
     end

@@ -168,7 +168,7 @@ stubs.files[FILE] = [[{
     "bad.xy": {"label": "No square"}
   },
   "phones": {
-    "whatever": {"x": 100, "y": 200, "facing": "E"},
+    "whatever": {"x": 100, "y": 200, "facing": "E", "sprite": "phuninteriors_01_18"},
     "bad.facing": {"x": 1, "y": 1, "facing": "up"}
   },
   "labels": {"ok.one": "Better", "bad.empty": ""}
@@ -183,6 +183,7 @@ check("a point can ask for a phone", Core.saved.points["ok.phone"] and Core.save
 check("a bad phone facing is left out", Core.saved.points["bad.phone"], nil)
 check("a phone is keyed by its own square", Core.saved.phones["100_200_0"] ~= nil, true)
 check("not what the file called it", Core.saved.phones["whatever"], nil)
+check("an old file's sprite is dropped", Core.saved.phones["100_200_0"] and Core.saved.phones["100_200_0"].sprite, nil)
 check("a bad facing is left out", Core.saved.phones["bad.facing"], nil)
 check("an empty rename is left out", Core.saved.labels["bad.empty"], nil)
 

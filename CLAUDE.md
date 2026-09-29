@@ -314,10 +314,13 @@ dedicated server does not have.
    the square first loads, which is gap 10's unproven `replace` with no old
    object. A point moved in code or in `PhunTaxi.json` needs both squares
    checked again: nothing here can tell a wall from a floor.
-3. **The arrival room has one slot.** `interiors.lua` stamps it at 22276,
-   12565, 0, and it is shared when full (gap 12). Any more are read out of the
-   lotpacks with PhunInteriors' `scripts/tiles.pl` rather than off a grid, and
-   checked with its `scripts/roomcheck.pl` (`scripts/map.cmd` runs it).
+3. **The arrival room's 64 slots have never been filled in game.**
+   `interiors.lua` lists them, 8x8 across cell 87,49, a 15x10 box over a
+   14x9 floor, each read out of the lotheader with PhunInteriors'
+   `scripts/rooms.pl` rather than off a grid, and checked with its
+   `scripts/roomcheck.pl` (`scripts/map.cmd` runs it). A slot is still
+   shared when full (gap 12). The generator is on the office roof
+   (12,1 at z=1).
 4. **The taxi and player built phones have never run in game.**
    `taxi_spec.lua` covers the order and outcome of every check without a
    square. Unproven, in order of risk:

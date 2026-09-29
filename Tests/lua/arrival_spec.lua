@@ -76,6 +76,11 @@ local _, why = Arrival.admit(fresh)
 check("asked once a session", why, "admitted")
 check("so PhunInteriors is not asked again", #enters, 1)
 
+-- Died and came back: the same username, a new character, in one session.
+local reborn = stubs.player("fresh", 0)
+check("the next character on the account is put in the room", Arrival.admit(reborn), "room")
+check("so PhunInteriors is asked for them", #enters, 2)
+
 reset()
 local old = stubs.player("old", 50)
 _, why = Arrival.admit(old)

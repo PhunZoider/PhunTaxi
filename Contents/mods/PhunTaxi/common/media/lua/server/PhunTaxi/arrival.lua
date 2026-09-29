@@ -40,9 +40,10 @@ local Arrival = {}
 -- phuninteriors cell, so nothing out there sees them arrive.
 --
 -- The middle of cell 87,49 (x 22272..22526, y 12544..12798 inside the fence),
--- well clear of the one arrival slot at 22276..22284, 12565..12574. Set to nil
--- to leave the vanilla selector alone; a new character is then moved from
--- wherever they chose, which works and only looks untidy.
+-- in the ground between slot rows 3 and 4 (y 12658..12667 and 12689..12698),
+-- so clear of all 64 arrival slots. Set to nil to leave the vanilla selector
+-- alone; a new character is then moved from wherever they chose, which works
+-- and only looks untidy.
 --
 -- TODO: unchecked in game that the square is open floor.
 Arrival.landing = {
@@ -51,11 +52,17 @@ Arrival.landing = {
     z = 0
 }
 
--- Characters already admitted this session, by player key. playerSetup is
--- also the picker's refresh, so without this every opening of the picker
--- would ask PhunInteriors to admit somebody already inside. It is only a
--- shortcut: PhunInteriors is asked again after a restart, and answers for a
--- character already in the room without moving them.
+-- Characters already admitted this session: player key to the IsoPlayer that
+-- was admitted. playerSetup is also the picker's refresh, so without this
+-- every opening of the picker would ask PhunInteriors to admit somebody
+-- already inside. It is only a shortcut: PhunInteriors is asked again after
+-- a restart, and answers for a character already in the room without moving
+-- them.
+--
+-- The object, not a flag, because the key is the username and outlives a
+-- death: a flag left the next character on the landing square, told they
+-- were already admitted. A new character, or the same one after a rejoin, is
+-- a new IsoPlayer and so is asked about again.
 local admitted = {}
 
 --- Where a character goes when there is no room for them, and where the
@@ -124,7 +131,7 @@ function Arrival.admit(player)
         return nil, "off"
     end
     local key = Core.playerKey(player)
-    if admitted[key] then
+    if admitted[key] == player then
         return nil, "admitted"
     end
     if not Placement.isPending(player) then
@@ -146,7 +153,7 @@ function Arrival.admit(player)
             } or nil
         })
         if ok then
-            admitted[key] = true
+            admitted[key] = player
             Core.debugLn(tostring(key) .. " admitted to " .. Core.roomIds.arrival .. " (" .. tostring(why) .. ")")
             return "room"
         end
@@ -156,7 +163,7 @@ function Arrival.admit(player)
     Core.logLn("no arrival room for " .. tostring(key) .. ": " .. tostring(why))
 
     if fallback and placeAt(player, fallback) then
-        admitted[key] = true
+        admitted[key] = player
         return "fallback"
     end
     -- Left where they landed, still pending. Not stamped as admitted, so the
