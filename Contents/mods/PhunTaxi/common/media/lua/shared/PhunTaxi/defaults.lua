@@ -255,6 +255,80 @@ local spots = {{
     facing = "N",
     label = "Church"
 }, {
+    x = 11088,
+    y = 9235,
+    z = 0,
+    facing = "W",
+    label = "Train Station"
+}, {
+    x = 11340,
+    y = 6766,
+    z = 0,
+    facing = "N",
+    label = "School"
+}, {
+    x = 11352,
+    y = 6728,
+    z = 0,
+    facing = "S",
+    label = "Food Market"
+}, {
+    x = 11514,
+    y = 8838,
+    z = 0,
+    facing = "N",
+    label = "General Store"
+}, {
+    x = 11669,
+    y = 7063,
+    z = 0,
+    facing = "E",
+    label = "Zipee Market"
+}, {
+    x = 11677,
+    y = 8193,
+    z = 0,
+    facing = "S",
+    label = "Police Station",
+    mods = {"Crossroads-Checkpoint"}
+}, {
+    x = 11682,
+    y = 8363,
+    z = 0,
+    facing = "W",
+    label = "Office",
+    mods = {"Crossroads-Checkpoint"}
+}, {
+    x = 11858,
+    y = 6889,
+    z = 0,
+    facing = "S",
+    label = "Hair Genesis"
+}, {
+    x = 11903,
+    y = 6827,
+    z = 0,
+    facing = "S",
+    label = "Moores"
+}, {
+    x = 11915,
+    y = 6916,
+    z = 0,
+    facing = "E",
+    label = "Bank"
+}, {
+    x = 11941,
+    y = 6787,
+    z = 0,
+    facing = "E",
+    label = "Laundromat"
+}, {
+    x = 11956,
+    y = 6889,
+    z = 0,
+    facing = "E",
+    label = "Town Hall"
+}, {
     x = 11979,
     y = 6988,
     z = 0,
@@ -266,6 +340,36 @@ local spots = {{
     z = 0,
     facing = "S",
     label = "High Wire"
+}, {
+    x = 11986,
+    y = 6815,
+    z = 0,
+    facing = "S",
+    label = "Spiffos"
+}, {
+    x = 12062,
+    y = 6806,
+    z = 0,
+    facing = "S",
+    label = "Twiggys"
+}, {
+    x = 12102,
+    y = 6790,
+    z = 0,
+    facing = "E",
+    label = "Stendo's"
+}, {
+    x = 12130,
+    y = 7031,
+    z = 0,
+    facing = "W",
+    label = "Storage"
+}, {
+    x = 12131,
+    y = 7101,
+    z = 0,
+    facing = "W",
+    label = "Trade Winds"
 }, {
     x = 1768,
     y = 14793,
@@ -339,6 +443,138 @@ local spots = {{
     facing = "S",
     label = "Brotts"
 }, {
+    x = 5833,
+    y = 5386,
+    z = 0,
+    facing = "S",
+    label = "Autoshop"
+}, {
+    x = 5860,
+    y = 5371,
+    z = 0,
+    facing = "E",
+    label = "Gas Station"
+}, {
+    x = 6294,
+    y = 5292,
+    z = 0,
+    facing = "E",
+    label = "Steakhouse"
+}, {
+    x = 6363,
+    y = 5215,
+    z = 0,
+    facing = "S",
+    label = "Riparian"
+}, {
+    x = 6405,
+    y = 5272,
+    z = 0,
+    facing = "S",
+    label = "Saucy"
+}, {
+    x = 6490,
+    y = 5296,
+    z = 0,
+    facing = "S",
+    label = "Cally's Gifts"
+}, {
+    x = 6523,
+    y = 5239,
+    z = 0,
+    facing = "E",
+    label = "FashionBelle"
+}, {
+    x = 6523,
+    y = 5270,
+    z = 0,
+    facing = "E",
+    label = "Lola Limon"
+}, {
+    x = 6540,
+    y = 5190,
+    z = 0,
+    facing = "E",
+    label = "Docks"
+}, {
+    x = 6554,
+    y = 5235,
+    z = 0,
+    facing = "S",
+    label = "Boat Club"
+}, {
+    x = 6578,
+    y = 5299,
+    z = 0,
+    facing = "E",
+    label = "Pet Supplies"
+}, {
+    x = 6661,
+    y = 5238,
+    z = 0,
+    facing = "N",
+    label = "Childrens Medical Center"
+}, {
+    x = 7144,
+    y = 6080,
+    z = 0,
+    facing = "S",
+    label = "Motel"
+}, {
+    x = 7228,
+    y = 8536,
+    z = 0,
+    facing = "E",
+    label = "Church"
+}, {
+    x = 7240,
+    y = 8161,
+    z = 0,
+    facing = "N",
+    label = "Camping Supply"
+}, {
+    x = 7254,
+    y = 8526,
+    z = 0,
+    facing = "E",
+    label = "The Horseshoe"
+}, {
+    x = 7256,
+    y = 8335,
+    z = 0,
+    facing = "S",
+    label = "Farming & Rural Supply"
+}, {
+    x = 7264,
+    y = 8241,
+    z = 0,
+    facing = "E",
+    label = "EP Tools"
+}, {
+    x = 7265,
+    y = 8437,
+    z = 0,
+    facing = "E",
+    label = "The Good Book"
+}, {
+    x = 7266,
+    y = 8171,
+    z = 0,
+    facing = "E",
+    label = "The Fermented Watermelon"
+}, {
+    x = 7267,
+    y = 8391,
+    z = 0,
+    facing = "E",
+    label = "Police Station"
+}, {
+    x = 7320,
+    y = 8286,
+    z = 0,
+    facing = "W",
+    label = "Diner"
+}, {
     x = 7826,
     y = 11888,
     z = 0,
@@ -411,6 +647,20 @@ local spots = {{
     facing = "E",
     label = "Mechanics"
 }, {
+    x = 8183,
+    y = 8593,
+    z = 0,
+    facing = "S",
+    label = "Warehouse",
+    mods = {"Maplewood"}
+}, {
+    x = 8234,
+    y = 8611,
+    z = 0,
+    facing = "S",
+    label = "Lucky Noodle",
+    mods = {"Maplewood"}
+}, {
     x = 8238,
     y = 11341,
     z = 0,
@@ -422,6 +672,20 @@ local spots = {{
     z = 0,
     facing = "S",
     label = "Storage"
+}, {
+    x = 8300,
+    y = 8554,
+    z = 0,
+    facing = "S",
+    label = "Police Station",
+    mods = {"Maplewood"}
+}, {
+    x = 8303,
+    y = 8580,
+    z = 0,
+    facing = "S",
+    label = "Gas Station",
+    mods = {"Maplewood"}
 }, {
     x = 8304,
     y = 12173,

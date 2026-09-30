@@ -375,15 +375,17 @@ dedicated server does not have.
    object. A point moved in code or in `PhunTaxi.json` needs both squares
    checked again: nothing here can tell a wall from a floor. Every entry in
    `candidates.lua` carries the same risk and the same check, and the list
-   ships empty until someone has stood on the squares. The 59 shipped phone
-   spots in `defaults.lua` (candidates, drawn per world) were kept in game in
-   the old store shape (the phone's
+   ships empty until someone has stood on the squares. The 102 shipped phone
+   spots in `defaults.lua` (candidates, drawn per world) were kept in game. The
+   first 59 were kept in the old store shape (the phone's
    own square) and converted to the traveller's square by `Core.phoneFront`;
    three of them had a key that disagreed with their own `x, y`
    (2263,14368, 2510,14060, 8140,11432), and the coordinates were taken over
    the key. The Machine Shop (phone at 10646,11061) and Motel (10623,10856) spots
-   are offered only with `Muldraugh-Checkpoint` active. A world that ran before they were
-   candidates has all 59 standing as ordinary swapped phones, and every
+   are offered only with `Muldraugh-Checkpoint` active. The other 43 came from a
+   `PhunTaxi.json` already in the traveller's square shape; two in Crossroads
+   need `Crossroads-Checkpoint` and four in Maplewood need `Maplewood`. A world
+   that ran before they were candidates has the first 59 standing as ordinary swapped phones, and every
    spot loses its draw to the phone already on it: only a new save shows the
    draw, because a wipe of global ModData alone records the standing phones
    again as their squares load.

@@ -276,7 +276,7 @@ Core.defaults = {
     RespawnPenalty = false,
     -- Percent chance a vanilla pay phone is swapped for one of ours, rolled
     -- once per phone. Zero turns the swap off.
-    PhoneChance = 50,
+    PhoneChance = 35,
     -- No swapped phone within this many squares of another. Zero turns the
     -- spacing off.
     PhoneDistance = 500,

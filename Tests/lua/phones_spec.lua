@@ -221,7 +221,7 @@ check("under the phone's id", point and point.id, "phun.spawn.phone.1000_2000_0"
 check("in front of the phone", point and (point.x .. "," .. point.y), "999,2000")
 check("discovered by use", point and point.discovery, "used")
 check("region from PhunZones", point and point.region, "Muldraugh")
-check("label names the place and square", point and point.label, "Downtown pay phone (1000, 2000)")
+check("label names the place", point and point.label, "Downtown pay phone")
 check("and it is recorded", PhoneSwap.store()["1000_2000_0"] ~= nil, true)
 
 -- A restart: the registry is empty, the record is not.
@@ -235,7 +235,7 @@ PhunZones = nil
 point = PhoneSwap.add(5000, 5000, 0, "N", "phuninteriors_01_19")
 check("no PhunZones still registers", point ~= nil, true)
 check("with no region", point and point.region, nil)
-check("and a plain label", point and point.label, "Pay phone (5000, 5000)")
+check("and a plain label", point and point.label, "Pay phone")
 
 check("forget removes the record", PhoneSwap.forget(5000, 5000, 0), true)
 check("and the point", Core.points["phun.spawn.phone.5000_5000_0"], nil)

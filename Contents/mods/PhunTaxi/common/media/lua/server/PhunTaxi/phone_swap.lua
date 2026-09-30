@@ -182,11 +182,9 @@ function PhoneSwap.locate(x, y)
     return title, subtitle
 end
 
---- What the picker shows. The coordinates are in it because a town can hold
---- several phones and "Pay phone" three times over is no choice at all.
+--- What the picker shows, when the phone has no shipped or admin name.
 function PhoneSwap.labelFor(record)
-    local what = record.subtitle and (record.subtitle .. " pay phone") or "Pay phone"
-    return what .. " (" .. tostring(record.x) .. ", " .. tostring(record.y) .. ")"
+    return record.subtitle and (record.subtitle .. " pay phone") or "Pay phone"
 end
 
 --- Register one record as a point. The region comes from PhunZones and is
@@ -202,7 +200,7 @@ function PhoneSwap.registerRecord(key, record)
     local id = PhoneSwap.pointId(key)
     return Core.registerPoint(id, {
         -- A shipped name is what the phone is registered as, so Reset name
-        -- goes back to it rather than to the coordinates.
+        -- goes back to it rather than to "Pay phone".
         label = Store.shippedLabel(id) or PhoneSwap.labelFor(record),
         region = record.region,
         x = fx,

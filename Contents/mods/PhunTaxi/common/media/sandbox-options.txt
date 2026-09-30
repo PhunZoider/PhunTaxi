@@ -63,7 +63,7 @@ option PhunTaxi.RespawnPenalty
 option PhunTaxi.PhoneChance
 {
     type = integer,
-    default = 50,
+    default = 35,
     min = 0,
     max = 100,
     page = PhunTaxi,
