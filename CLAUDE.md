@@ -81,7 +81,7 @@ Contents/mods/PhunTaxi/common/
   mod.info                  id=phuntaxi, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
   media/lua/shared/PhunTaxi/   core, tools, points, phones, phone_guards, taxi,
-                                interiors, zones, defaults
+                                interiors, zones, defaults, candidates
   media/lua/server/PhunTaxi/   unlocks, placement, arrival, phone_swap, store,
                                 rides, building, server_{commands,events}
   media/lua/client/PhunTaxi/   client_{main,commands,context,events,phone,
@@ -111,7 +111,8 @@ Tests/lua/arrival_spec.lua who is put in the arrival room, the fallback when
                            there is no room, and the regions collapsing
 Tests/lua/zones_spec.lua   the Taxi Garage zone: its flags, and its rect
                            against the cell and objects.lua
-Tests/lua/phones_spec.lua  the swap table, spacing, a swapped phone as a point
+Tests/lua/phones_spec.lua  the swap table, spacing, a swapped phone as a point,
+                           the candidate draw
 Tests/lua/picker_spec.lua  region grouping and the once only spawn button
 Tests/lua/editor_spec.lua  renames surviving a reboot, and an admin port that
                            grants nothing
@@ -197,6 +198,21 @@ square key** (`Core.phoneKey`), which the payload carries as `phone` on a
 known point, and a ride's destination is any point with a `phoneKey`, not a
 `used` one.
 
+**Phone candidates are drawn once per world, not rolled on load.** A
+candidate (`Core.addPhoneCandidate`, shipped in `candidates.lua`) is a square
+a phone MAY go on, for the voids with no vanilla phone to swap. Rolling them
+on load would let load order pick the winner of a group, which is whichever
+side the first player came in from, every world. So
+`PhoneSwap.drawCandidates` shuffles every undrawn one and spaces each by
+`PhoneDistance` against the winners so far and every record; a winner is a
+record at once (`candidate`, `pending`), so it reserves its spacing before a
+vanilla phone near it rolls, and is put up by `restore` when its square loads.
+The draws are in `Core.data.candidates`, so a wipe draws again. The draw is
+lazy, on the first square load after boot and whenever
+`Core.phones.candidatesVersion` moves, never in `start`: only then can a
+pending winner whose candidate is missing be dropped as taken out rather than
+not added yet.
+
 **A starter is granted on read, not stamped once.** So a point added to the
 start set in a later version reaches existing characters and there is no
 migration to write.
@@ -217,7 +233,7 @@ temporarily and putting it back costs nobody their exploring.
 
 **An admin deletes a point with a tombstone, as PhunZones does.** Code
 registers its points again on every boot, so deleting a shipped or third
-party point is an id in `PhunTaxi.json`'s `deleted`, and `registerPoint` puts
+party point is `deleted` on its entry in `PhunTaxi.json`, and `registerPoint` puts
 a tombstoned id in `Core.deleted` instead of `Core.points`. Every reader looks
 in `Core.points` and needs no filter of its own; the graveyard exists for the
 editor to list and for Restore to put back. A point an admin added on a
@@ -243,6 +259,14 @@ is slow.
 coordinates can draw them whatever the option says, so an option enforced only
 in the UI is not enforced at all.
 
+**The whole list goes out on join and when the picker opens; a discovery
+sends one entry.** `unlocked` carries `point`, built by the same
+`Unlocks.entryFor` as the full payload, and the client puts it in place with
+`Core.mergePoint` (the `Core.pointBefore` order, which is why an entry
+carries `priority`). Only additions travel this way. A rename, a delete or a
+released phone is not pushed, so the refresh when the picker opens is what
+carries those, and must stay until something else does.
+
 **PhunInteriors is a hard dependency** (`require=phuninteriors`, and
 `phuninteriorstest` for the test id). This mod uses its off grid room, its
 map instancing, its tiles and textures (see `Docs/map.md`) and its way of
@@ -263,6 +287,42 @@ parse is never written over. A kept phone is never forgotten: a square that
 loads without it gets one of ours put back, over a vanilla phone if one is
 there, which is what carries it into a new world. It is still keyed by its
 square, so its point id is the one the client rings by.
+
+The file is **one flat list** (`version` 2, `entries`): a kept phone (the
+default, no `type`), a point (`"type": "point"`), or an override (an `id`
+and no square, carrying `label` and/or `deleted` for a point the file does
+not define). A phone and a point share one shape: `x, y, z` is always where
+the traveller stands, and `facing` puts the phone on the square behind. A
+phone entry takes no id, because its point id is built from the phone's
+square and every account's unlocks name it. A point's id defaults to
+`Store.customId` of its square and its label to its coordinates, and
+defaults are left out on write. In memory it is still `Core.saved.{points,
+phones, labels, deleted}`: `Store.sanitise` takes the list apart and
+`Store.document` puts it back, so nothing outside `store.lua` knows the
+file's shape. A rename of a point the file defines is written into its own
+entry (so Reset name has nothing to go back to), not kept as an override.
+A file in the old four table shape, or with `entries` not a list, is
+refused whole and never written over.
+
+**Shipped pay phones sit under the file, as PhunZones' zones do.**
+`Core.shipped` (filled by a third party, shared) is a list in the file's own
+entry shape, checked by the same `Store.sanitise` in `Store.readShipped` and
+merged into `Core.saved.phones` at load unless the file has that square. The
+file holds only the difference: a phone kept as shipped is never written, so
+a later version's list reaches every server; releasing one writes
+`kept: false` (`Core.saved.released`), because a line the file never had
+cannot be taken out. A shipped label is the phone's **registered** label
+(`Store.shippedLabel`, read by `registerRecord`), not an override, so Reset
+name goes back to it. A shipped entry's `mods` is read by `readShipped`
+only; the file does not take it.
+
+**PhunTaxi's own pay phones are candidates, not shipped kept phones.** The
+list in `defaults.lua` is in the file's entry shape (the traveller's square
+and a facing) and is offered to `Core.addPhoneCandidate` on the square
+behind, so each world draws and spaces them and a town gets one of its
+spots. Shipped as kept phones, every world got every one. A spot's `label`
+reaches the phone that wins through a name only entry in `Core.shipped`, so
+it is still a registered label and Reset name goes back to it.
 
 **Moving a player is `PhunInteriors.sendTo`, never a teleport of our own.**
 A bare teleport out of a room leaves PhunInteriors believing the player is
@@ -313,7 +373,20 @@ dedicated server does not have.
    but each `phone` is put up by `PhoneSwap.restore` on an empty square when
    the square first loads, which is gap 10's unproven `replace` with no old
    object. A point moved in code or in `PhunTaxi.json` needs both squares
-   checked again: nothing here can tell a wall from a floor.
+   checked again: nothing here can tell a wall from a floor. Every entry in
+   `candidates.lua` carries the same risk and the same check, and the list
+   ships empty until someone has stood on the squares. The 59 shipped phone
+   spots in `defaults.lua` (candidates, drawn per world) were kept in game in
+   the old store shape (the phone's
+   own square) and converted to the traveller's square by `Core.phoneFront`;
+   three of them had a key that disagreed with their own `x, y`
+   (2263,14368, 2510,14060, 8140,11432), and the coordinates were taken over
+   the key. The Machine Shop (phone at 10646,11061) and Motel (10623,10856) spots
+   are offered only with `Muldraugh-Checkpoint` active. A world that ran before they were
+   candidates has all 59 standing as ordinary swapped phones, and every
+   spot loses its draw to the phone already on it: only a new save shows the
+   draw, because a wipe of global ModData alone records the standing phones
+   again as their squares load.
 3. **The arrival room's 64 slots have never been filled in game.**
    `interiors.lua` lists them, 8x8 across cell 87,49, a 15x10 box over a
    14x9 floor, each read out of the lotheader with PhunInteriors'
@@ -372,8 +445,10 @@ dedicated server does not have.
    Unproven, in order of risk: that `LoadGridsquare` modifying a square
    behaves as it does for PhunMart; that "Facing = E" means the player
    stands east of the phone, which is where a phone's spawn point is put;
-   and the ring, which is entirely client side (`client/.../client_phone.lua`):
-   squares noted on the client's LoadGridsquare, known phones read from the
+   and the ring, which is client side (`client/.../client_phone.lua`):
+   squares noted on the client's LoadGridsquare, plus every phone the server
+   puts up (`PhoneSwap.replace` broadcasts `phoneUp`, because a phone put up
+   on an empty square arrives after the client's load), known phones read from the
    points payload by `Core.phonePointId`, played through a free emitter with
    `PhunTaxi_PhoneRinging`. The guards
    (`shared/.../phone_guards.lua`) cover pickup, rotate, dismantle,
@@ -397,7 +472,8 @@ dedicated server does not have.
    last choice and stamps no placement. A rename is an override in
    `PhunTaxi.json` (`Core.saved.labels`), read by `registerPoint`, so it
    survives the next boot and a wipe; set back to the registered label it
-   is removed rather than stored. Remove, Delete and Restore share one
+   is removed rather than stored. A point the file itself defines is
+   renamed in its own entry instead, so Reset name is never offered for it. Remove, Delete and Restore share one
    button, titled by row; deleted points are listed in a Deleted tab only
    and get no map pin. Players see a rename the next time their
    picker asks for its list. Unproven: the `ISTextBox` callback shape
@@ -427,7 +503,17 @@ dedicated server does not have.
    `process.lua` hold, which the whole hook rests on. An admin setting up the
    garage is blocked like anyone else unless PhunZones' "Staff ignore zone
    restrictions" is on. PhunZones also names the garage as the region of
-   any phone inside it.
+   any phone inside it. The same file adds two int fields to
+   `PhunZones.fields` (`phoneChance`, `phoneDistance`, names in
+   `Core.consts`), which `PhoneSwap.chanceAt` / `spacingAt` read through
+   `getLocation` in place of the sandbox values; unset falls back. Nothing
+   calls `getLocation` before PhunZones has set itself up (`PhunZones.inied`):
+   the call sets it up, and doing that at our boot threw in its client
+   `OnDataBuilt` listener in single player (no player yet) and left it half
+   set up. Until then a vanilla phone is left unstamped, and every record is
+   located once on the first square load after. Unproven:
+   that they show in the editor's Mods group, and that clearing one there
+   takes it back to unset (the editor's `saveProp` drops a non number).
 12. **The arrival room has run once, on a server.** A new character was put
    in the garage by `PhunInteriors.enterRoom`. The picker no longer opens by
    itself: a pending character gets a pulsing line over the taxi instead

@@ -25,7 +25,7 @@ local function reset()
     Core.regions = {}
     Core.unlocked = {}
     Core.data = {}
-    Core.saved = {points = {}, phones = {}, labels = {}}
+    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}, released = {}}
     Core.indexesBuilt = false
 end
 
@@ -44,6 +44,21 @@ check("no definition is refused", Core.registerPoint("d.point"), nil)
 check("no id is refused", Core.registerPoint(nil, {label = "D", x = 1, y = 2}), nil)
 check("only the good one is stored", Core.points["a.point"] ~= nil, true)
 check("and nothing else is", Core.points["b.point"], nil)
+
+-- `mods`: any one active is enough, none active registers nothing, and a
+-- list that is not a list of ids is refused rather than read as "none".
+stubs.mods = {othermap = true}
+check("mods not a list is refused", Core.registerPoint("m.bad", {label = "M", x = 1, y = 2, mods = "othermap"}), nil)
+check("nor a list with a non string", Core.registerPoint("m.bad", {label = "M", x = 1, y = 2, mods = {1}}), nil)
+check("no mod active registers nothing", Core.registerPoint("m.none", {label = "M", x = 1, y = 2, mods = {"absent"}}), nil)
+check("and is not stored", Core.points["m.none"], nil)
+check("one of them active is enough", Core.registerPoint("m.one", {
+    label = "M", x = 1, y = 2, mods = {"absent", "othermap"}
+}) ~= nil, true)
+check("an empty list asks for nothing", Core.registerPoint("m.empty", {label = "M", x = 1, y = 2, mods = {}}) ~= nil, true)
+check("a skipped id leaves what is there", Core.registerPoint("m.one", {label = "M2", x = 1, y = 2, mods = {"absent"}}), nil)
+check("as it was", Core.points["m.one"].label, "M")
+stubs.mods = {}
 
 -- z defaults to ground rather than to nil, because every reader compares it
 -- and a nil would make a point on no level at all.
@@ -208,5 +223,35 @@ for _, entry in ipairs(payload) do
 end
 check("the unknown one is flagged", unknown.known, false)
 check("and carries no coordinates", unknown.x, nil)
+
+-- ---------------------------------------------------------------------------
+-- A discovery is sent as one entry and merged on the client. The merged list
+-- has to be the list a full payload would have sent, or the picker shows a
+-- different order (or a stale undiscovered row) until it next refreshes.
+-- ---------------------------------------------------------------------------
+local function ids(list)
+    local out = {}
+    for _, e in ipairs(list) do
+        table.insert(out, e.id .. (e.known and "+" or "-") .. tostring(e.x))
+    end
+    return table.concat(out, " ")
+end
+for _, show in ipairs({false, true}) do
+    reset()
+    Core.settings.ShowUndiscovered = show
+    Core.registerPoint("m.first", {label = "Zed", x = 1, y = 1, discovery = Core.discovery.start, priority = 0})
+    Core.registerPoint("m.late", {label = "Alpha", x = 2, y = 2, priority = 10})
+    Core.registerPoint("m.mid", {label = "Mid", x = 3, y = 3, priority = 0})
+    Core.registerPoint("m.same", {label = "Mid", x = 4, y = 4, priority = 0})
+    local mo = stubs.player("mo" .. tostring(show))
+    for _, id in ipairs({"m.late", "m.same", "m.mid"}) do
+        local before = Unlocks.payloadFor(mo)
+        Unlocks.grant(mo, id)
+        Core.mergePoint(before, Unlocks.entryFor(Core.points[id], true))
+        check("merging " .. id .. (show and " over an undiscovered row" or " into the list") ..
+                  " matches a full payload", ids(before), ids(Unlocks.payloadFor(mo)))
+    end
+end
+Core.settings.ShowUndiscovered = false
 
 os.exit(report.finish("points") > 0 and 1 or 0)

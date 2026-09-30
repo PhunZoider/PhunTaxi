@@ -2,7 +2,8 @@ require "PhunTaxi/core"
 local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
--- The PhunZones hook: the Taxi Garage.
+-- The PhunZones hook: the Taxi Garage, and the pay phone fields any zone may
+-- set (see the bottom of the file).
 --
 -- A soft hook, unlike PhunInteriors. With PhunZones absent the cell is still
 -- walled, unpowered and zombie free by its lotheader (see Docs/map.md), so
@@ -50,6 +51,33 @@ if phunZonesActive() then
             -- both ends, so this is 22272..22527, not the 256 wide
             -- NoPowerOrWater zone's half open rectangle.
             points = {{22272, 12544, 22527, 12799}}
+        }
+    end
+
+    -- Two fields any zone may set, so an admin can crowd a city with pay
+    -- phones and leave the countryside sparse: PhoneChance and PhoneDistance
+    -- for that zone. Added the way PhunZones' README shows a mod adding its
+    -- own, into its editor's Mods group. Unset is the sandbox value, which
+    -- is why there is no `default`: one would be a zone setting it.
+    -- phone_swap.lua reads them, through PhunZones.getLocation.
+    local ok = pcall(require, "PhunZones/core")
+    local pz = PhunZones
+    if ok and pz and type(pz.fields) == "table" then
+        pz.fields[Core.consts.zoneChanceField] = {
+            label = "IGUI_PhunTaxi_ZonePhoneChance",
+            type = "int",
+            tooltip = "IGUI_PhunTaxi_ZonePhoneChance_tooltip",
+            group = "mods",
+            order = 200,
+            mod = Core.name
+        }
+        pz.fields[Core.consts.zoneDistanceField] = {
+            label = "IGUI_PhunTaxi_ZonePhoneDistance",
+            type = "int",
+            tooltip = "IGUI_PhunTaxi_ZonePhoneDistance_tooltip",
+            group = "mods",
+            order = 201,
+            mod = Core.name
         }
     end
 end

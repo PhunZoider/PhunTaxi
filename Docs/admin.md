@@ -9,7 +9,7 @@ see [Sandbox options](sandbox-options.md).
 |---|---|---|
 | PhunInteriors | **required** | The Taxi Garage is one of its rooms, the map uses its tiles, and every ride moves the player through it. |
 | PhunMart | optional | Taxi fares, paid in its change. Not needed for the free first ride, or for a taxi with both fare options at 0. |
-| PhunZones | optional | Adds a **Taxi Garage** zone over the garage cell: no zombies, and no safehouse, building, placing, pickup, scrapping or sledgehammer. Without it the cell is still walled, unpowered and has no zombie spawns. |
+| PhunZones | optional | Adds a **Taxi Garage** zone over the garage cell: no zombies, and no safehouse, building, placing, pickup, scrapping or sledgehammer. Without it the cell is still walled, unpowered and has no zombie spawns. Also lets any zone set its own pay phone chance and spacing (see [Sandbox options](sandbox-options.md#pay-phones)). |
 
 PhunTaxi ships a one cell map, **cell 87,49** (world x 22272 to 22527, y
 12544 to 12799). Another map mod using that cell will conflict with it.
@@ -62,8 +62,8 @@ from the **debug menu** (PhunTaxi).
 
 It lists every registered spawn point, found or not, with its region, how it
 is found, where it is and how far it is from you, nearest first, beside the
-whole map. Tabs filter by how a point is found (Start, Exploring, Pay phone,
-Other), and Deleted holds the points you have deleted. Select a point to see it on the
+whole map. Tabs filter by how a point is found (All, Start, Exploring, Pay
+phone, Other), and Deleted holds the points you have deleted. Select a point to see it on the
 map, then:
 
 | Button | What it does |
@@ -71,7 +71,7 @@ map, then:
 | Go there | Takes you to the point. It does not unlock it for you, set your last choice or use up a new character's ride. |
 | Rename | Changes what players see. The id never changes, because it is what every player's unlocks store. Players see the new name the next time they open their list. |
 | Reset name | Puts back the name the point was registered with. |
-| Keep / Release | On a pay phone. A kept phone is carried into the next world after a wipe. Released, it stays where it is but is not carried over. |
+| Keep / Release | On a pay phone. A kept phone is carried into the next world after a wipe. Released, it stays where it is but is not carried over. Another mod can ship phones that are kept from the start; releasing one of those is remembered in `PhunTaxi.json`. |
 | Found by | On a point an admin added: each press steps it through known from the **start**, found by **exploring**, and only **granted** (by an admin or another mod). |
 | Remove | On a point an admin added on a square: takes it out of `PhunTaxi.json` for good. |
 | Delete | On any other point that is not a pay phone, shipped or another mod's: hides it from everybody, and it stays hidden through a reboot and a wipe. Nobody loses it from their list. The last start point cannot be deleted. |
@@ -96,45 +96,73 @@ time its square loads, replacing the vanilla phone standing there if there is
 one. A kept phone that goes missing is put back the same way; release it
 first if you want it gone.
 
+The mod ships a set of named pay phone spots of its own, in towns across the
+map. They are **not** kept: each new world draws them once, in a random
+order, and a spot gets a phone only if it is at least Pay Phone Spacing from
+every phone already there, so a town gets one of its spots and a different
+one each world. Rename the phone a spot put up and the file gets an override
+with its new name; Reset name goes back to the shipped name. Keep it and it
+is in your file like any phone you kept, so every world after has that one.
+A spot that needs a map mod is offered only when that mod is active.
+
 The file is meant to be read and hand edited, and copying it to another
 server copies the setup:
 
 ```json
 {
-  "version": 1,
-  "points": {
-    "phun.spawn.custom.10608_9698_0": {
-      "label": "Muldraugh - Gas station", "region": "Muldraugh",
-      "x": 10608, "y": 9698, "z": 0, "discovery": "start"
-    }
-  },
-  "phones": {
-    "11702_6890_0": { "x": 11702, "y": 6890, "z": 0, "facing": "E" }
-  },
-  "labels": { "phun.spawn.westpoint.motel": "The Motel" },
-  "deleted": { "phun.spawn.riverside.marina": true }
+  "version": 2,
+  "entries": [
+    { "x": 11703, "y": 6890, "z": 0, "facing": "E" },
+    { "x": 10501, "y": 9660, "z": 0, "facing": "S", "label": "Muldraugh diner phone" },
+    {
+      "type": "point", "label": "Muldraugh - Gas station", "region": "Muldraugh",
+      "x": 10608, "y": 9698, "z": 0, "discovery": "start", "facing": "N"
+    },
+    {
+      "type": "point", "id": "phun.spawn.westpoint.motel", "label": "The Motel",
+      "x": 11920, "y": 6880, "z": 0, "facing": "W"
+    },
+    { "id": "phun.spawn.riverside.marina", "deleted": true },
+    { "id": "phun.spawn.rosewood.firehouse", "label": "The Firehouse" }
+  ]
 }
 ```
 
-- A point's `x, y, z` is where the character arrives. `discovery` is
-  `start`, `explore` (the default) or `granted`.
-- A point's `phone` (E, S, W or N) puts a pay phone of ours on the square
-  **behind** `x, y`, facing that way, so the point is a taxi stop. It is put
-  up when its square loads and put back if it goes. Every shipped point has
-  one, so when you move a shipped point, give your copy a `phone` too, and
-  check that the square behind it takes one.
-- A point with the same id as a shipped one **replaces** it. That is how you
-  move a shipped point that lands somewhere bad, without touching code.
-- A phone's `x, y, z` is **the phone's own square**. `facing` (E, S, W or N)
-  puts the traveller on the square in front of it, and decides which phone
-  sprite goes up. A `sprite` left over in an older file is ignored and
-  dropped the next time the file is written.
-- `labels` renames any point by id, shipped or added.
-- `deleted` hides any point by id, shipped, another mod's or added. The code
-  still registers it every boot and this keeps it out, so taking the line out
-  (or Restore) brings it back as the code has it now.
+It is one list, and each entry is one of three things.
+
+- **A kept pay phone** is the default: an entry with no `type` (or
+  `"type": "phone"`). Its `x, y, z` is **where the traveller stands**, and
+  `facing` (E, S, W or N) puts the phone on the square **behind** that,
+  facing them, and decides which phone sprite goes up. A `label` renames it.
+  A phone takes no `id`: it is known by the square it stands on, which is
+  what every player who used it has in their list. To stop keeping one, take
+  its entry out or Release it; `deleted` does not apply to a phone. A shipped
+  phone cannot be taken out of a file it is not in, so for one of those the
+  entry stays with `"kept": false`.
+- **A point** says `"type": "point"`. Its `x, y, z` is where the character
+  arrives, the same square a phone's would be. `facing` asks for a pay phone
+  of ours behind it, exactly as for a phone, so the point is a taxi stop; it
+  is put up when its square loads and put back if it goes. `discovery` is
+  `start`, `explore` (the default) or `granted`. With no `id`, the point is
+  known by its square, which is what one added in game gets; with no
+  `label`, it is named by its coordinates. A point with the same `id` as a
+  shipped one **replaces** it. That is how you move a shipped point that
+  lands somewhere bad, without touching code. Every shipped point has a
+  phone, so give your copy a `facing` too, and check that the square behind
+  it takes one.
+- **An override** has an `id` and no square. It changes a point this file
+  does not define: a shipped one, another mod's, or a pay phone nobody kept.
+  `label` renames it. `"deleted": true` hides it: the code still registers it
+  every boot and this keeps it out, so taking the entry out (or Restore)
+  brings it back as the code has it now. A point the file defines takes
+  `deleted` and `label` on its own entry instead.
+- A rename made in game of a point in the file changes that point's own
+  `label`, so there is no separate name for Reset to go back to.
+- Anything left at its default (the id, the label, `explore`) is left out
+  when the file is written, so an added point is a square and a name.
 - An entry that is wrong is left out and named in the server log. The rest
-  still count.
+  still count. A file still in the older shape (separate `points`, `phones`,
+  `labels` and `deleted`) is not read at all, and is never written over.
 
 **Edit it with the server stopped, or reload straight after.** Every change
 made in game rewrites the file, so a hand edit made while the server runs is
@@ -165,6 +193,7 @@ to that client's console.
 | Deleted points | yes | `PhunTaxi.json` |
 | Players' unlocks and last choice | no | the world's global ModData |
 | Live pay phones nobody kept | no, they are rolled again | the world's global ModData |
+| Which extra phone spots were drawn | no, they are drawn again | the world's global ModData |
 | Player built pay phones | no | the world's global ModData |
 
 Players' unlocks are one record per **account** (the username), so a player's
@@ -177,6 +206,16 @@ exploring carries over to their next character but not into a new world.
   start. Each has a pay phone behind its arrival square, so a new character
   can call a taxi from wherever the free ride took them. Deleting one leaves
   its phone standing as an ordinary pay phone.
+- **Extra pay phones.** Some parts of the map have no vanilla pay phone to
+  make live, so PhunTaxi ships spots where a phone may go instead. Each world
+  draws them once, in a random order, and a spot is used only if it is at
+  least Pay Phone Spacing from every phone already there. A few spots close
+  together give one phone, a different one each world. A drawn spot counts
+  for the spacing from the start, so vanilla phones near it are not made
+  live, and its phone goes up the first time its square loads. Pay Phone
+  Chance does not apply to spots: set Pay Phone Spacing to 0 for a phone on
+  every one. Store one
+  like any other pay phone to keep it through a wipe.
 - **Somewhere has to be a start point.** A new player who knows nothing has
   nowhere to ride to. If you replace or delete the shipped ones, make sure
   something else is. The editor will not delete the last one.

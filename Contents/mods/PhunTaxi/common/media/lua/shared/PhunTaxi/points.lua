@@ -71,6 +71,9 @@ end
 --               called from and ridden to (server/phone_swap.lua). The point
 --               keeps its own id and its own discovery; using the phone
 --               grants this point.
+--   mods        a list of mod ids. Optional. With one, the point (and its
+--               phone) exists only when at least one of them is active, and
+--               otherwise registerPoint returns nil and registers nothing.
 function Core.registerPoint(id, def)
     if type(id) ~= "string" or id == "" then
         Core.logLn("registerPoint needs a string id")
@@ -92,6 +95,19 @@ function Core.registerPoint(id, def)
     -- registered without one is a place nobody can take a taxi from.
     if def.phone ~= nil and not Core.phones.front[def.phone] then
         Core.logLn("registerPoint('" .. id .. "') needs phone to be one of E, S, W, N")
+        return nil
+    end
+    local modsOk, modsWhy = Core.tools.checkMods(def.mods)
+    if not modsOk then
+        Core.logLn("registerPoint('" .. id .. "'): " .. modsWhy)
+        return nil
+    end
+    -- Not registered at all, rather than registered and hidden: a point that
+    -- is not in Core.points is one no reader has to filter, and its phone,
+    -- which is declared by the point, never goes up. Anything registered
+    -- under the id already is left as it is.
+    if not Core.tools.anyModActive(def.mods) then
+        Core.debugLn("point '" .. id .. "' skipped: none of its mods is active")
         return nil
     end
 
@@ -344,21 +360,48 @@ end
 -- Sorted on (priority, label, id). The id tail is not decoration: pairs()
 -- order is not stable, ties are routine, and without it one save would draw
 -- the same list in two different orders.
+--- The one order points are listed in: priority, then label, then id. Takes
+--- a registered point or a payload entry, which carries `priority` for this.
+function Core.pointBefore(a, b)
+    local pa, pb = a.priority or 0, b.priority or 0
+    if pa ~= pb then
+        return pa < pb
+    end
+    if a.label ~= b.label then
+        return a.label < b.label
+    end
+    return a.id < b.id
+end
+
 local function sorted(registry)
     local out = {}
     for _, point in pairs(registry) do
         table.insert(out, point)
     end
-    table.sort(out, function(a, b)
-        if a.priority ~= b.priority then
-            return a.priority < b.priority
-        end
-        if a.label ~= b.label then
-            return a.label < b.label
-        end
-        return a.id < b.id
-    end)
+    table.sort(out, Core.pointBefore)
     return out
+end
+
+--- Put one payload entry into a payload list, in order: the one point a
+--- discovery changes, sent on its own rather than the whole list again. An
+--- entry already there (an undiscovered one, under ShowUndiscovered) is
+--- replaced where it stands, since only what is known about it changed.
+--- Returns the list.
+function Core.mergePoint(list, entry)
+    for i, point in ipairs(list) do
+        if point.id == entry.id then
+            list[i] = entry
+            return list
+        end
+    end
+    for i, point in ipairs(list) do
+        if Core.pointBefore(entry, point) then
+            table.insert(list, i, entry)
+            return list
+        end
+    end
+    table.insert(list, entry)
+    return list
 end
 
 --- Every point, WITH coordinates, for the admin editor. Never for a player:

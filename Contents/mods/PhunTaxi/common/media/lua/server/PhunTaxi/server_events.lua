@@ -6,6 +6,7 @@ require "PhunTaxi/tools"
 require "PhunTaxi/interiors"
 require "PhunTaxi/phone_guards"
 require "PhunTaxi/defaults"
+require "PhunTaxi/candidates"
 local Core = PhunTaxi
 local Commands = require "PhunTaxi/server_commands"
 local Unlocks = require "PhunTaxi/unlocks"

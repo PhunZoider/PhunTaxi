@@ -34,7 +34,7 @@ local function reset()
     Core.unlocked = {}
     Core.indexesBuilt = false
     Core.data = {}
-    Core.saved = {points = {}, phones = {}, labels = {}}
+    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}, released = {}}
     Core.settings.PhoneChance = 50
     Core.settings.PhoneDistance = 500
     Core.settings.DiscoveryRadius = 12

@@ -114,5 +114,9 @@
   "IGUI_PhunTaxi_PhoneBuilt": "Your pay phone is up: %1",
   "IGUI_PhunTaxi_NotYourPhone": "That is not your phone to take down",
   "IGUI_PhunTaxi_PhoneIsKept": "An admin is keeping that phone",
-  "IGUI_PhunTaxi_PhoneTakenDown": "You take the phone down and pack it back into its kit"
+  "IGUI_PhunTaxi_PhoneTakenDown": "You take the phone down and pack it back into its kit",
+  "IGUI_PhunTaxi_ZonePhoneChance": "Pay Phone Chance",
+  "IGUI_PhunTaxi_ZonePhoneChance_tooltip": "PhunTaxi: percent chance, 0 to 100, a vanilla pay phone in this zone becomes a live one. Rolled once per phone, the first time it loads, so a change only reaches phones not rolled yet. Leave unset for the sandbox Pay Phone Chance. 0 turns the swap off here",
+  "IGUI_PhunTaxi_ZonePhoneDistance": "Pay Phone Spacing",
+  "IGUI_PhunTaxi_ZonePhoneDistance_tooltip": "PhunTaxi: no pay phone in this zone becomes live within this many squares of another live phone, so lower packs them closer. Leave unset for the sandbox Pay Phone Spacing. 0 for no spacing"
 }

@@ -29,7 +29,7 @@ local function reset()
     Core.regions = {}
     Core.unlocked = {}
     Core.data = {}
-    Core.saved = {points = {}, phones = {}, labels = {}}
+    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}, released = {}}
     Core.indexesBuilt = false
     -- The picker's own flow, with nobody put in an arrival room first:
     -- playerSetup would otherwise place a new character at a fallback point

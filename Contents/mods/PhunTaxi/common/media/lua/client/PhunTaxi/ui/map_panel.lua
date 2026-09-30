@@ -84,7 +84,7 @@ function MapPanel:initMap(hideUnvisited)
     MapUtils.overlayPaper(self)
 
     api:setBoolean("Isometric", false)
-    api:setBoolean("HideUnvisited", hideUnvisited == true)
+    self:setHideUnvisited(hideUnvisited)
     api:setBoolean("Players", true)
     api:setBoolean("RemotePlayers", false)
     api:setBoolean("Symbols", true)
@@ -92,6 +92,13 @@ function MapPanel:initMap(hideUnvisited)
 
     api:centerOn((api:getMinXInSquares() + api:getMaxXInSquares()) / 2,
         (api:getMinYInSquares() + api:getMaxYInSquares()) / 2)
+end
+
+--- Draw only what this character has seen, or the whole map. Per map: the
+--- engine keeps the option on this map's renderer and reads it every frame.
+function MapPanel:setHideUnvisited(hide)
+    self.hideUnvisited = hide == true
+    self.mapAPI:setBoolean("HideUnvisited", self.hideUnvisited)
 end
 
 -- ---------------------------------------------------------------------------

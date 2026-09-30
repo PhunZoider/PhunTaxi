@@ -29,7 +29,7 @@ local function reset()
     Core.regions = {}
     Core.unlocked = {}
     Core.data = {}
-    Core.saved = {points = {}, phones = {}, labels = {}}
+    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}, released = {}}
     Core.indexesBuilt = false
 end
 

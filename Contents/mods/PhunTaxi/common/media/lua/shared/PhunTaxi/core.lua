@@ -61,6 +61,11 @@ PhunTaxi = {
         -- What a point an admin added is registered under: this and its
         -- square, so two can never share one.
         customPrefix = "phun.spawn.custom.",
+        -- The PhunZones fields a zone overrides PhoneChance and PhoneDistance
+        -- with, inside it. Added to PhunZones' editor by zones.lua and read
+        -- by phone_swap.lua; unset on a zone means the sandbox value.
+        zoneChanceField = "phoneChance",
+        zoneDistanceField = "phoneDistance",
         -- The longest label the editor will store. A label is drawn in a
         -- list row and beside a map pin, and neither wraps.
         labelMax = 60
@@ -92,6 +97,11 @@ PhunTaxi = {
         -- Carries the phone's square, which the server checks against where
         -- the player stands and against its own list of swapped phones.
         usePhone = "usePhone",
+        -- server -> every client: "one of ours just went up on this square".
+        -- A client notes phones for the ring as their squares load, and a
+        -- phone put up on an empty square arrives after that, so without
+        -- this it is never noted and never rings.
+        phoneUp = "phoneUp",
         notify = "notify",
         admin = "admin",
         adminResult = "adminResult",
@@ -172,9 +182,18 @@ PhunTaxi = {
     -- on every tick. The record is the truth; this is the copy, and it is
     -- rebuilt on playerSetup.
     unlocked = {},
+    -- The shipped pay phones: a list of entries in the store file's own
+    -- shape (a phone, or an override carrying only a label), filled by
+    -- defaults.lua and by anybody else before OnInitGlobalModData. Shared, so
+    -- every side has it, but only the server reads it: Store.load merges it
+    -- under the store file, which overrides it. See server/store.lua.
+    shipped = {},
     -- What the store file says, server side: {points, phones, labels,
-    -- deleted}. Loaded before anything registers, because a rename and a
-    -- tombstone are read at registration. Written by server/store.lua,
+    -- deleted, released}, taken apart from the file's one list of entries by
+    -- Store.sanitise, with the shipped phones merged into `phones` unless
+    -- the file overrides or releases them (`released`: key -> the shipped
+    -- phone let go). Loaded before anything registers, because a rename and
+    -- a tombstone are read at registration. Written by server/store.lua,
     -- except `labels` and `deleted`, which Core.renamePoint and
     -- Core.deletePoint edit for the store to save. Always empty on a client,
     -- which is told everything it needs in a payload.
@@ -182,7 +201,8 @@ PhunTaxi = {
         points = {},
         phones = {},
         labels = {},
-        deleted = {}
+        deleted = {},
+        released = {}
     },
     settings = {},
     ui = {},
@@ -322,6 +342,15 @@ function Core.respond(player, command, args)
         end
     else
         sendServerCommand(player, Core.name, command, args or {})
+    end
+end
+
+--- Server -> every client. In single player that is the one local client.
+function Core.broadcast(command, args)
+    if Core.isLocal then
+        Core.respond(nil, command, args)
+    else
+        sendServerCommand(Core.name, command, args or {})
     end
 end
 

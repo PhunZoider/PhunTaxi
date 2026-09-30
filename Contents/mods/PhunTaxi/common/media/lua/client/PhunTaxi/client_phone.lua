@@ -221,10 +221,12 @@ function Client.queueBuildPhone(player, square, facing, kit)
 end
 
 -- ---------------------------------------------------------------------------
--- The ring. Decided and played here, with no help from the server.
+-- The ring. Decided and played here.
 --
--- The client already knows what it needs. Every phone it loads comes through
--- LoadGridsquare, and every phone this player has used is in their points
+-- The client knows nearly all it needs. Every phone standing when its square
+-- loads comes through LoadGridsquare. One the server puts up on an empty
+-- square (a candidate, a point's, a kept or built one) arrives after that
+-- load, so the server says so (Core.commands.phoneUp, Client.notePhone). And every phone this player has used is in their points
 -- payload with the key of its square (Core.phoneKey) as `phone`. So a phone of
 -- ours whose square is not in the payload is one they do not know, and it
 -- rings.
@@ -260,6 +262,20 @@ local function noteSquare(square)
             return
         end
     end
+end
+
+--- A phone the server has just put up on a square this client has already
+--- loaded, so LoadGridsquare will not show it (Core.commands.phoneUp).
+function Client.notePhone(x, y, z)
+    if not Core.settings.PhoneRing or type(x) ~= "number" or type(y) ~= "number" then
+        return
+    end
+    z = z or 0
+    spots[Core.phoneKey(x, y, z)] = {
+        x = x,
+        y = y,
+        z = z
+    }
 end
 
 -- true: one of ours stands there now. false: a phone, but not ours (yet).

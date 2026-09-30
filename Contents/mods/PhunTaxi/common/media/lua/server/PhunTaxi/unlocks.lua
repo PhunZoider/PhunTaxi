@@ -204,24 +204,32 @@ function Unlocks.payloadFor(player)
     for _, point in ipairs(Core.sortedPoints()) do
         local known = live[point.id] == true
         if known or (Core.settings.ShowUndiscovered and point.discovery ~= Core.discovery.used) then
-            table.insert(out, {
-                id = point.id,
-                label = point.label,
-                region = point.region,
-                known = known,
-                -- The key of the square its phone stands on, for a pay
-                -- phone or a place with one: so the taxi can list only
-                -- phones, and the client can tell a phone it knows from its
-                -- square. Only on a known point, since the key is a
-                -- position.
-                phone = known and point.phoneKey or nil,
-                x = known and point.x or nil,
-                y = known and point.y or nil,
-                z = known and point.z or nil
-            })
+            table.insert(out, Unlocks.entryFor(point, known))
         end
     end
     return out
+end
+
+--- One point as the payload carries it. Also sent on its own with a
+--- discovery, for the client to merge (Core.mergePoint), so the two cannot
+--- come to disagree about what an entry says.
+function Unlocks.entryFor(point, known)
+    return {
+        id = point.id,
+        label = point.label,
+        region = point.region,
+        -- So a merged entry lands where a full payload would have put it.
+        priority = point.priority,
+        known = known,
+        -- The key of the square its phone stands on, for a pay phone or a
+        -- place with one: so the taxi can list only phones, and the client
+        -- can tell a phone it knows from its square. Only on a known point,
+        -- since the key is a position.
+        phone = known and point.phoneKey or nil,
+        x = known and point.x or nil,
+        y = known and point.y or nil,
+        z = known and point.z or nil
+    }
 end
 
 Core.modules.unlocks = Unlocks

@@ -46,7 +46,8 @@ Part of the Phun mod family. Requires PhunInteriors.
 - Build 42.
 - **PhunInteriors** (required). The Taxi Garage is one of its rooms.
 - PhunMart (optional), for taxi fares.
-- PhunZones (optional), to lock the Taxi Garage cell down further.
+- PhunZones (optional), to lock the Taxi Garage cell down further, and to set
+  pay phone chance and spacing per zone.
 
 PhunTaxi ships a one cell map, cell 87,49. Another map mod using that cell
 will conflict.

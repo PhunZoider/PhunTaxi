@@ -24,6 +24,9 @@ function require(path)
     if path == "PhunZones/data" then
         return data
     end
+    if path == "PhunZones/core" then
+        return PhunZones
+    end
     return stubRequire(path)
 end
 local zonesFile = ROOT .. "/Contents/mods/PhunTaxi/common/media/lua/shared/PhunTaxi/zones.lua"
@@ -31,6 +34,7 @@ local zonesFile = ROOT .. "/Contents/mods/PhunTaxi/common/media/lua/shared/PhunT
 local function load(mods)
     active = mods
     data = {}
+    PhunZones = {fields = {}}
     dofile(zonesFile)
     return data
 end
@@ -74,5 +78,29 @@ check("matches objects.lua x", r[1], tonumber(ox))
 check("matches objects.lua y", r[2], tonumber(oy))
 check("matches objects.lua width", r[3] - r[1] + 1, tonumber(ow))
 check("matches objects.lua height", r[4] - r[2] + 1, tonumber(oh))
+
+-- ---------------------------------------------------------------------------
+-- The pay phone fields, added to PhunZones' editor only when it is there.
+-- ---------------------------------------------------------------------------
+local chanceField = PhunTaxi.consts.zoneChanceField
+local distanceField = PhunTaxi.consts.zoneDistanceField
+load({})
+check("no PhunZones, no chance field", PhunZones.fields[chanceField], nil)
+load({phunzones2 = true})
+for _, key in ipairs({chanceField, distanceField}) do
+    local field = PhunZones.fields[key]
+    check(key .. " is a field", field ~= nil, true)
+    check(key .. " is an int", field and field.type, "int")
+    -- A default would read as the zone setting it, and hide the sandbox value.
+    check(key .. " has no default", field and field.default, nil)
+end
+-- Every label and tooltip is translated, or the editor shows the raw key.
+local ui = io.open(ROOT .. "/Contents/mods/PhunTaxi/common/media/lua/shared/Translate/EN/IG_UI.json"):read("*a")
+for _, key in ipairs({chanceField, distanceField}) do
+    local field = PhunZones.fields[key]
+    check(key .. " label translated", ui:find('"' .. field.label .. '"', 1, true) ~= nil, true)
+    check(key .. " tooltip translated", ui:find('"' .. field.tooltip .. '"', 1, true) ~= nil, true)
+end
+PhunZones = nil
 
 os.exit(report.finish("zones") == 0 and 0 or 1)

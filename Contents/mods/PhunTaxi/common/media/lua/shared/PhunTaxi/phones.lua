@@ -1,4 +1,5 @@
 require "PhunTaxi/core"
+require "PhunTaxi/tools"
 local Core = PhunTaxi
 
 -- ---------------------------------------------------------------------------
@@ -56,7 +57,17 @@ Core.phones = {
         S = {0, 1},
         W = {-1, 0},
         N = {0, -1}
-    }
+    },
+    -- Squares a phone MAY go on, for the parts of the map with no vanilla
+    -- phone to swap: phone key -> {x, y, z, facing, chance}. Drawn once per
+    -- world by the server (PhoneSwap.drawCandidates), in a random order, each
+    -- spaced by PhoneDistance against the others and every phone already
+    -- recorded. So a handful close together gives one phone, somewhere
+    -- different each world. See Core.addPhoneCandidate.
+    candidates = {},
+    -- Counts every change to `candidates`, so the draw knows when a late one
+    -- has turned up without walking the table on every square load.
+    candidatesVersion = 0
 }
 
 local facings = {
@@ -117,6 +128,52 @@ function Core.addPhoneSprite(facing, sprite, replace)
     if Core.hardenPhoneSprites then
         Core.hardenPhoneSprites()
     end
+    return true
+end
+
+--- Offer a square as somewhere a phone may go. x, y, z is the PHONE's square
+--- and `facing` which way it faces, so the character stands on the square in
+--- front (Core.phoneFront): check both in game, as for a point's `phone`.
+---
+--- `chance` (1 to 100, default 100) is the percent chance it is drawn at all
+--- when its turn comes. Below 100 a group of candidates can come up empty;
+--- one that fails steps aside for the next in the draw.
+---
+--- `mods` (optional) is a list of mod ids: with one, the square is offered
+--- only when at least one of them is active, and otherwise nothing is added
+--- and this returns false. A world whose mods change is handled by the draw
+--- as a candidate taken out or added late.
+---
+--- Safe from any hook that runs before the first square loads, and later too:
+--- a candidate that turns up after the draw is drawn when it does. Adding the
+--- same square again replaces it, but a square already drawn in this world
+--- keeps its result.
+function Core.addPhoneCandidate(x, y, z, facing, chance, mods)
+    if type(x) ~= "number" or type(y) ~= "number" or not facings[facing] then
+        Core.logLn("addPhoneCandidate needs x, y, z and one of E, S, W, N")
+        return false
+    end
+    if chance ~= nil and (type(chance) ~= "number" or chance < 1 or chance > 100) then
+        Core.logLn("addPhoneCandidate's chance is a percent, 1 to 100")
+        return false
+    end
+    local modsOk, modsWhy = Core.tools.checkMods(mods)
+    if not modsOk then
+        Core.logLn("addPhoneCandidate: " .. modsWhy)
+        return false
+    end
+    if not Core.tools.anyModActive(mods) then
+        return false
+    end
+    x, y, z = math.floor(x), math.floor(y), math.floor(z or 0)
+    Core.phones.candidates[Core.phoneKey(x, y, z)] = {
+        x = x,
+        y = y,
+        z = z,
+        facing = facing,
+        chance = chance or 100
+    }
+    Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
     return true
 end
 

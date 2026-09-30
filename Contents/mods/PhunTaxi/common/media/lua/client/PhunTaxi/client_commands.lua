@@ -19,6 +19,10 @@ Commands[Core.commands.adminPoints] = function(arguments)
     Client.receiveAdminPoints(arguments)
 end
 
+Commands[Core.commands.phoneUp] = function(arguments)
+    Client.notePhone(arguments.x, arguments.y, arguments.z)
+end
+
 Commands[Core.commands.notify] = function(arguments)
     Client.notify(arguments)
 end

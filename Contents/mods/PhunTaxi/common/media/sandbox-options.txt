@@ -21,7 +21,7 @@ option PhunTaxi.DiscoveryRadius
     type = integer,
     default = 12,
     min = 1,
-    max = 200,
+    max = 300,
     page = PhunTaxi,
     translation = PhunTaxi_DiscoveryRadius,
 }
@@ -63,7 +63,7 @@ option PhunTaxi.RespawnPenalty
 option PhunTaxi.PhoneChance
 {
     type = integer,
-    default = 90,
+    default = 50,
     min = 0,
     max = 100,
     page = PhunTaxi,
@@ -73,7 +73,7 @@ option PhunTaxi.PhoneChance
 option PhunTaxi.PhoneDistance
 {
     type = integer,
-    default = 500,
+    default = 300,
     min = 0,
     max = 10000,
     page = PhunTaxi,

@@ -36,7 +36,7 @@ local function wipe()
     Core.unlocked = {}
     Core.indexesBuilt = false
     Core.data = {}
-    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}}
+    Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}, released = {}}
     Store.unreadable = false
     Core.settings.PhoneChance = 50
     Core.settings.PhoneDistance = 500
@@ -55,6 +55,45 @@ end
 
 local function fileDoc()
     return json.decode(stubs.files[FILE] or "")
+end
+
+-- What an entry in the written file is known by: its id, the default id of
+-- a point's square, or a phone's own square key.
+local function idOf(e)
+    if e.id then
+        return e.id
+    end
+    if e.x == nil then
+        return nil
+    end
+    if e.type == "point" then
+        return Store.customId(e.x, e.y, e.z)
+    end
+    local px, py = Core.phoneBehind(e.x, e.y, e.facing)
+    return Store.keyOf(px, py, e.z)
+end
+
+-- The written entry for an id or a phone's key, or nil.
+local function entry(id)
+    local doc = fileDoc()
+    for _, e in ipairs(doc and doc.entries or {}) do
+        if idOf(e) == id then
+            return e
+        end
+    end
+    return nil
+end
+
+-- A decoded file with every entry for `id` taken out.
+local function without(doc, id)
+    local kept = {}
+    for _, e in ipairs(doc.entries or {}) do
+        if idOf(e) ~= id then
+            table.insert(kept, e)
+        end
+    end
+    doc.entries = kept
+    return doc
 end
 
 local function shipped()
@@ -81,8 +120,11 @@ check("trimmed", point and point.label, "The Gas Station")
 check("found by exploring", point and point.discovery, "explore")
 check("and marked saved", point and point.saved, true)
 check("the file is written", fileDoc() ~= nil, true)
-check("with the point in it", fileDoc().points["phun.spawn.custom.1234_5678_0"].label, "The Gas Station")
-check("and a version", fileDoc().version, 1)
+check("with the point in it", entry("phun.spawn.custom.1234_5678_0").label, "The Gas Station")
+check("as a point", entry("phun.spawn.custom.1234_5678_0").type, "point")
+check("with no id, since its square is its id", entry("phun.spawn.custom.1234_5678_0").id, nil)
+check("and no discovery, since explore is the default", entry("phun.spawn.custom.1234_5678_0").discovery, nil)
+check("and a version", fileDoc().version, 2)
 
 point, why = Store.addPoint(1234, 5678, 0, "Again")
 check("a second point on the square is refused", why, "IGUI_PhunTaxi_PointHere")
@@ -92,7 +134,8 @@ point, why = Store.addPoint(1, 1, 0, string.rep("x", Core.consts.labelMax + 1))
 check("an over long name is refused", why, "IGUI_PhunTaxi_LabelTooLong")
 
 Store.rename("phun.spawn.test.home", "Safehouse")
-check("a rename is in the file", fileDoc().labels["phun.spawn.test.home"], "Safehouse")
+check("a rename of a shipped point is an override", entry("phun.spawn.test.home").label, "Safehouse")
+check("with no square", entry("phun.spawn.test.home").x, nil)
 
 wipe()
 boot(shipped)
@@ -111,7 +154,7 @@ point, why = Store.setKind("phun.spawn.test.home", Core.discovery.explore)
 check("a shipped point's kind is not the file's to change", why, "IGUI_PhunTaxi_NotSavedPoint")
 point = Store.setKind("phun.spawn.custom.1234_5678_0", Core.discovery.start)
 check("start is taken", point and point.discovery, "start")
-check("and written", fileDoc().points["phun.spawn.custom.1234_5678_0"].discovery, "start")
+check("and written", entry("phun.spawn.custom.1234_5678_0").discovery, "start")
 wipe()
 boot(shipped)
 local newbie = stubs.player("newbie", 0)
@@ -130,11 +173,13 @@ check("the file's square wins over the shipped one", Core.points["phun.spawn.tes
 -- ---------------------------------------------------------------------------
 -- Remove.
 -- ---------------------------------------------------------------------------
-Store.rename("phun.spawn.custom.1234_5678_0", "Renamed")
+point = Store.rename("phun.spawn.custom.1234_5678_0", "Renamed")
+check("a file point's rename is in its own entry", entry("phun.spawn.custom.1234_5678_0").label, "Renamed")
+check("not an override", Core.saved.labels["phun.spawn.custom.1234_5678_0"], nil)
+check("so it is not shown as renamed", point and point.shippedLabel, "Renamed")
 check("remove takes it out", Store.removePoint("phun.spawn.custom.1234_5678_0"), true)
 check("of the registry", Core.points["phun.spawn.custom.1234_5678_0"], nil)
-check("and the file", fileDoc().points["phun.spawn.custom.1234_5678_0"], nil)
-check("with its rename", fileDoc().labels["phun.spawn.custom.1234_5678_0"], nil)
+check("and the file, rename and all", entry("phun.spawn.custom.1234_5678_0"), nil)
 point, why = Store.removePoint("phun.spawn.custom.1234_5678_0")
 check("removing twice is refused", why, "IGUI_PhunTaxi_NotSavedPoint")
 
@@ -159,33 +204,64 @@ getFileWriter = realWriter
 -- A hand edit with problems: the good lines count, the bad ones are named.
 -- ---------------------------------------------------------------------------
 stubs.files[FILE] = [[{
-  "points": {
-    "ok.one": {"label": "Fine", "x": 1, "y": 2},
-    "bad.kind": {"label": "Typo", "x": 1, "y": 2, "discovery": "strat"},
-    "ok.phone": {"label": "Diner", "x": 5, "y": 6, "discovery": "start", "phone": "S"},
-    "bad.phone": {"label": "Wall", "x": 5, "y": 6, "phone": "up"},
-    "bad.label": {"x": 1, "y": 2},
-    "bad.xy": {"label": "No square"}
-  },
-  "phones": {
-    "whatever": {"x": 100, "y": 200, "facing": "E", "sprite": "phuninteriors_01_18"},
-    "bad.facing": {"x": 1, "y": 1, "facing": "up"}
-  },
-  "labels": {"ok.one": "Better", "bad.empty": ""}
+  "version": 2,
+  "entries": [
+    {"type": "point", "id": "ok.one", "label": "Fine", "x": 1, "y": 2},
+    {"type": "point", "id": "bad.kind", "label": "Typo", "x": 1, "y": 2, "discovery": "strat"},
+    {"type": "point", "id": "ok.phone", "label": "Diner", "x": 5, "y": 6, "discovery": "start", "facing": "S"},
+    {"type": "point", "id": "bad.phone", "label": "Wall", "x": 5, "y": 6, "facing": "up"},
+    {"type": "point", "x": 3, "y": 4},
+    {"type": "point", "id": "bad.xy", "label": "No square", "x": 1},
+    {"x": 101, "y": 200, "facing": "E", "sprite": "phuninteriors_01_18"},
+    {"x": 7, "y": 7, "z": 0, "facing": "S", "label": "Corner phone"},
+    {"x": 1, "y": 1, "facing": "up"},
+    {"id": "ok.one", "label": "Better"},
+    {"id": "bad.empty", "label": ""},
+    {"type": "car", "x": 1, "y": 1},
+    {"id": "shipped.gone", "deleted": true}
+  ]
 }]]
 wipe()
 local problems = Store.load()
 check("each bad entry is reported", #problems, 6)
 check("a good point is read", Core.saved.points["ok.one"] ~= nil, true)
 check("defaulting to explore", Core.saved.points["ok.one"].discovery, "explore")
+check("an override of a file point is its label", Core.saved.points["ok.one"].label, "Better")
+check("not a second one", Core.saved.labels["ok.one"], nil)
 check("a mistyped kind is left out, not guessed", Core.saved.points["bad.kind"], nil)
 check("a point can ask for a phone", Core.saved.points["ok.phone"] and Core.saved.points["ok.phone"].phone, "S")
 check("a bad phone facing is left out", Core.saved.points["bad.phone"], nil)
-check("a phone is keyed by its own square", Core.saved.phones["100_200_0"] ~= nil, true)
-check("not what the file called it", Core.saved.phones["whatever"], nil)
+check("a point with no id is its square's", Core.saved.points["phun.spawn.custom.3_4_0"] ~= nil, true)
+check("and with no label, named by its square", Core.saved.points["phun.spawn.custom.3_4_0"].label, "3, 4")
+check("a phone is the square behind where you stand", Core.saved.phones["100_200_0"] ~= nil, true)
 check("an old file's sprite is dropped", Core.saved.phones["100_200_0"] and Core.saved.phones["100_200_0"].sprite, nil)
-check("a bad facing is left out", Core.saved.phones["bad.facing"], nil)
+check("a phone's label renames its point", Core.saved.labels[Core.phonePointId(7, 6, 0)], "Corner phone")
 check("an empty rename is left out", Core.saved.labels["bad.empty"], nil)
+check("an override can tombstone", Core.saved.deleted["shipped.gone"], true)
+
+-- Written back, it reads the same, and says only what is not a default.
+Store.save()
+check("a point with defaults writes only its square", entry("phun.spawn.custom.3_4_0").label, nil)
+check("a phone writes where you stand", entry("100_200_0") and entry("100_200_0").x, 101)
+check("a renamed phone keeps its label", entry("7_6_0") and entry("7_6_0").label, "Corner phone")
+check("the tombstone is an override", entry("shipped.gone") and entry("shipped.gone").deleted, true)
+wipe()
+problems = Store.load()
+check("and reads back with nothing wrong", #problems, 0)
+check("the same", Core.saved.points["ok.one"] and Core.saved.points["ok.one"].label, "Better")
+check("phones too", Core.saved.phones["7_6_0"] and Core.saved.phones["7_6_0"].facing, "S")
+
+-- A file in the old shape, or with entries that are not a list, is refused
+-- whole rather than read as empty and written over.
+for _, text in ipairs({'{"version": 1, "points": {"a": {"label": "A", "x": 1, "y": 2}}}',
+                       '{"version": 2, "entries": {"a": {"x": 1, "y": 2, "facing": "E"}}}'}) do
+    stubs.files[FILE] = text
+    wipe()
+    Store.load()
+    check("a file that is not the list is unreadable", Store.unreadable, true)
+    Store.addPoint(70, 80, 0, "Later")
+    check("so nothing made in game writes over it", stubs.files[FILE], text)
+end
 
 -- ---------------------------------------------------------------------------
 -- A file that does not parse is not written over.
@@ -209,7 +285,8 @@ boot()
 PhoneSwap.add(1000, 2000, 0, "W", "phuninteriors_01_18")
 local key = "1000_2000_0"
 check("keeping writes the phone", Store.keepPhone(key, PhoneSwap.store()[key]), true)
-check("its square and facing", fileDoc().phones[key].facing, "W")
+check("its facing", entry(key) and entry(key).facing, "W")
+check("from where the traveller stands", entry(key) and (entry(key).x .. "," .. entry(key).y), "999,2000")
 
 -- The wipe: no ModData record, only the file.
 wipe()
@@ -232,7 +309,7 @@ check("and not out of anything else", PhoneSwap.keyOfPoint("phun.spawn.custom.1_
 point = PhoneSwap.release(key)
 check("release returns the point", point ~= nil, true)
 check("no longer saved", point and point.saved, false)
-check("out of the file", fileDoc().phones[key], nil)
+check("out of the file", entry(key), nil)
 check("an ordinary phone again, so forgettable", PhoneSwap.forget(1000, 2000, 0), true)
 point, why = PhoneSwap.release(key)
 check("releasing what is not kept is refused", why, "IGUI_PhunTaxi_NotKept")
@@ -296,9 +373,8 @@ Commands[Core.commands.adminSetKind](boss, {id = "phun.spawn.custom.5_6_0", disc
 check("an admin can change its kind", Core.points["phun.spawn.custom.5_6_0"].discovery, "granted")
 
 -- A hand edit made while the server runs, read in by reload.
-local doc = fileDoc()
-doc.points["hand.edit"] = {label = "By hand", x = 7, y = 8}
-doc.points["phun.spawn.custom.5_6_0"] = nil
+local doc = without(fileDoc(), "phun.spawn.custom.5_6_0")
+table.insert(doc.entries, {type = "point", id = "hand.edit", label = "By hand", x = 7, y = 8})
 stubs.files[FILE] = json.encodePretty(doc)
 Commands[Core.commands.admin](boss, {action = "reload"})
 check("reload registers a point added by hand", Core.points["hand.edit"] ~= nil, true)
@@ -337,7 +413,7 @@ check("a player cannot delete a point", Core.points["phun.spawn.test.far"] ~= ni
 Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.test.far"})
 check("an admin can delete a shipped point", Core.points["phun.spawn.test.far"], nil)
 check("and is told", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_PointDeleted")
-check("the tombstone is in the file", fileDoc().deleted["phun.spawn.test.far"], true)
+check("the tombstone is in the file", entry("phun.spawn.test.far") and entry("phun.spawn.test.far").deleted, true)
 check("the player no longer has it", Unlocks.has(player, "phun.spawn.test.far"), false)
 listed = nil
 for _, row in ipairs(lastSent(Core.commands.adminPoints).points) do
@@ -376,7 +452,7 @@ Store.rename("phun.spawn.test.away", "Over there")
 Commands[Core.commands.adminRestorePoint](boss, {id = "phun.spawn.test.away"})
 check("an admin can restore a point", Core.points["phun.spawn.test.away"] ~= nil, true)
 check("with its rename", Core.points["phun.spawn.test.away"].label, "Over there")
-check("and the tombstone leaves the file", fileDoc().deleted["phun.spawn.test.away"], nil)
+check("and the tombstone leaves the file", (entry("phun.spawn.test.away") or {}).deleted, nil)
 Commands[Core.commands.adminRestorePoint](boss, {id = "phun.spawn.test.away"})
 check("restoring twice is refused", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_NotDeleted")
 
@@ -385,28 +461,33 @@ check("restoring twice is refused", lastSent(Core.commands.notify).text, "IGUI_P
 Commands[Core.commands.adminAddPoint](boss, {x = 70, y = 80, z = 0, label = "Here"})
 Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.custom.70_80_0"})
 check("an added point is removed", Core.points["phun.spawn.custom.70_80_0"], nil)
-check("from the file", fileDoc().points["phun.spawn.custom.70_80_0"], nil)
-check("with no tombstone", fileDoc().deleted["phun.spawn.custom.70_80_0"], nil)
+check("from the file, with no tombstone", entry("phun.spawn.custom.70_80_0"), nil)
 check("saying removed", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_PointRemoved")
 
 -- A file entry standing in for a shipped point is tombstoned, and kept.
 doc = fileDoc()
-doc.points["phun.spawn.test.far"] = {label = "Far, fixed", x = 51, y = 61}
+table.insert(doc.entries, {type = "point", id = "phun.spawn.test.far", label = "Far, fixed", x = 51, y = 61})
 stubs.files[FILE] = json.encodePretty(doc)
 Commands[Core.commands.admin](boss, {action = "reload"})
 Commands[Core.commands.adminRemovePoint](boss, {id = "phun.spawn.test.far"})
 check("a file entry over a shipped point is deleted", Core.points["phun.spawn.test.far"], nil)
-check("and kept in the file", fileDoc().points["phun.spawn.test.far"] ~= nil, true)
+check("and kept", Core.saved.points["phun.spawn.test.far"] and Core.saved.points["phun.spawn.test.far"].x, 51)
+-- The hand edit left the old override beside the new entry; written back,
+-- the two are one.
+Store.save()
+check("written as one entry", entry("phun.spawn.test.far") and entry("phun.spawn.test.far").x, 51)
+check("marked deleted", entry("phun.spawn.test.far") and entry("phun.spawn.test.far").deleted, true)
 Commands[Core.commands.adminRestorePoint](boss, {id = "phun.spawn.test.far"})
 check("so restore brings the fixed one back", Core.points["phun.spawn.test.far"].x, 51)
 
 -- A reload of a hand edit that takes a tombstone out, or puts one in.
-doc = fileDoc()
-doc.deleted = {["phun.spawn.test.away"] = true}
+doc = without(fileDoc(), "phun.spawn.test.away")
+table.insert(doc.entries, {id = "phun.spawn.test.away", label = "Over there", deleted = true})
 stubs.files[FILE] = json.encodePretty(doc)
 Commands[Core.commands.admin](boss, {action = "reload"})
 check("reload applies a tombstone added by hand", Core.points["phun.spawn.test.away"], nil)
-doc.deleted = {}
+doc = without(doc, "phun.spawn.test.away")
+table.insert(doc.entries, {id = "phun.spawn.test.away", label = "Over there"})
 stubs.files[FILE] = json.encodePretty(doc)
 Commands[Core.commands.admin](boss, {action = "reload"})
 check("and lifts one taken out", Core.points["phun.spawn.test.away"] ~= nil, true)
@@ -420,6 +501,81 @@ check("an unwritable file refuses a delete", why, "IGUI_PhunTaxi_NotSaved")
 check("and the point is put back", Core.points["phun.spawn.test.away"] ~= nil, true)
 check("with no tombstone left in memory", Core.saved.deleted["phun.spawn.test.away"], nil)
 getFileWriter = realWriter
+
+-- ---------------------------------------------------------------------------
+-- Shipped phones: kept under the file, which holds only the difference.
+-- ---------------------------------------------------------------------------
+local shopKey, shopId = "5000_5000_0", Core.phonePointId(5000, 5000, 0)
+local mapKey = "6000_6000_0"
+Core.shipped = {
+    {x = 5001, y = 5000, z = 0, facing = "E", label = "Corner shop"},
+    {x = 6001, y = 6000, z = 0, facing = "E", label = "Map shop", mods = {"somemap"}},
+    {id = Core.phonePointId(7000, 7000, 0), label = "Diner"}
+}
+stubs.files = {}
+wipe()
+boot()
+check("a shipped phone is kept with no file", PhoneSwap.store()[shopKey] and PhoneSwap.store()[shopKey].kept, true)
+check("under its shipped name", Core.points[shopId] and Core.points[shopId].label, "Corner shop")
+check("which is its registered name, not a rename", Core.points[shopId] and Core.points[shopId].shippedLabel,
+    "Corner shop")
+check("one whose mods are not active is not", Core.saved.phones[mapKey], nil)
+check("and nothing is written for them", stubs.files[FILE], nil)
+PhoneSwap.add(7000, 7000, 0, "S", "phuninteriors_01_17")
+check("a shipped name reaches a phone that is not kept", Core.points[Core.phonePointId(7000, 7000, 0)] and
+    Core.points[Core.phonePointId(7000, 7000, 0)].label, "Diner")
+
+Store.rename(shopId, "The shop")
+check("a rename of a shipped phone is an override", entry(shopId) and entry(shopId).label, "The shop")
+check("and the phone itself is not written", entry(shopKey), nil)
+Store.rename(shopId, "")
+check("reset goes back to the shipped name", Core.points[shopId].label, "Corner shop")
+check("and leaves nothing in the file", entry(shopId), nil)
+
+PhoneSwap.release(shopKey)
+check("releasing a shipped phone writes kept false", entry(shopKey) and entry(shopKey).kept, false)
+wipe()
+boot()
+check("and it stays released in the next world", Core.saved.phones[shopKey], nil)
+check("with no record kept", PhoneSwap.store()[shopKey], nil)
+Store.keepPhone(shopKey, {x = 5000, y = 5000, z = 0, facing = "E"})
+check("keeping it again takes the line out", entry(shopKey), nil)
+wipe()
+boot()
+check("so it is shipped again", Core.saved.phones[shopKey] ~= nil, true)
+
+stubs.files[FILE] = json.encodePretty({
+    version = 2,
+    entries = {{x = 5000, y = 5001, z = 0, facing = "S"}}
+})
+wipe()
+boot()
+check("the file's facing wins over the shipped one", Core.saved.phones[shopKey].facing, "S")
+Store.save()
+check("and is written back", entry(shopKey) and entry(shopKey).facing, "S")
+
+stubs.files[FILE] = json.encodePretty({
+    version = 2,
+    entries = {{x = 6001, y = 6000, z = 0, facing = "E", kept = false}}
+})
+wipe()
+boot()
+Store.save()
+check("a release outlives its phone not being shipped", entry(mapKey) and entry(mapKey).kept, false)
+stubs.mods.somemap = true
+wipe()
+boot()
+check("and holds once it is", Core.saved.phones[mapKey], nil)
+stubs.files = {}
+wipe()
+boot()
+check("a shipped phone whose mod is active is kept", Core.saved.phones[mapKey] ~= nil, true)
+stubs.mods.somemap = nil
+
+Core.shipped = {{type = "point", x = 1, y = 1, label = "Nope"}}
+wipe()
+check("a shipped point is refused", #Store.load(), 1)
+Core.shipped = {}
 
 -- ---------------------------------------------------------------------------
 -- The written file is one a person can read and diff.

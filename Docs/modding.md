@@ -59,9 +59,11 @@ get wrong.
 | `priority` | default 0 | Lower sorts first within a region. |
 | `room` | optional | A PhunInteriors room id to arrive inside. **Not used yet**: stored, and ignored. |
 | `phone` | optional | `E`, `S`, `W` or `N`. A pay phone of PhunTaxi's stands on the square **behind** `x, y`, facing that way, so the point is somewhere a taxi can be called from and ridden to. The server puts it up when its square loads and puts it back if it goes. Using it grants your point. The square behind has to take a phone: check it in game. |
+| `mods` | optional | A list of mod ids, eg `{"somemap", "somemaptest"}`. The point exists only when **at least one** of them is active. Otherwise it is not registered at all, and a `phone` it asks for never goes up. Leave it out, or pass `{}`, for a point that is always there. |
 
-`registerPoint` returns the point, or nil (and a line in the log) if the
-definition is missing something.
+`registerPoint` returns the point. It returns nil, with a line in the log,
+if the definition is missing something, and nil without registering
+anything if none of its `mods` is active.
 
 ### The id
 
@@ -116,6 +118,29 @@ out of the registry until they restore it. Nothing on your side needs to
 handle it, and `PhunTaxi.points[id]` is nil for a deleted point as for a
 removed one.
 
+## Shipping pay phones
+
+A mod can ship kept pay phones, which every world has: add entries in
+`PhunTaxi.json`'s own shape to `PhunTaxi.shipped` while your files load,
+before `OnInitGlobalModData`.
+
+```lua
+table.insert(PhunTaxi.shipped, {
+    x = 6100, y = 5201, z = 0, facing = "N",
+    label = "Lighthouse phone",
+    mods = {"somemap"}
+})
+```
+
+`x, y, z` is where the traveller stands and `facing` puts the phone on the
+square behind, so a line can be copied out of a `PhunTaxi.json`. An entry
+with only an `id` and a `label` names a phone that is not kept. `mods` keeps
+the phone only when one of those mods is active. Points are not shipped this
+way: register them with `registerPoint`. An admin's file overrides all of it,
+and both squares need checking in game, as for a point's `phone`. PhunTaxi
+does not ship its own phones this way: they are spots (below), so a world
+gets one per town rather than all of them.
+
 ## Events
 
 Registered with `Events.<name>.Add(fn)`. Look the event up inside your
@@ -127,6 +152,43 @@ Registered with `Events.<name>.Add(fn)`. Look the event up inside your
 | `PhunTaxiOnReady` | both | `PhunTaxi` | After registration, once the mod has booted. |
 | `PhunTaxiOnPointUnlocked` | server | `player, point` | A player found a point or was granted one. |
 | `PhunTaxiOnSpawned` | server | `player, point` | A new character was placed at a point. |
+
+## Pay phone spots
+
+For a stretch of your map with no vanilla pay phone, offer squares where one
+of PhunTaxi's may go:
+
+```lua
+Events.OnInitGlobalModData.Add(function()
+    if not PhunTaxi then
+        return
+    end
+    -- x, y, z of the PHONE, the way it faces, and optionally a percent
+    -- chance, 1 to 100
+    PhunTaxi.addPhoneCandidate(10500, 9000, 0, "S")
+    PhunTaxi.addPhoneCandidate(10620, 9080, 0, "E")
+    PhunTaxi.addPhoneCandidate(10700, 8950, 0, "W", 50)
+    -- a sixth argument lists mods, at least one of which must be active
+    PhunTaxi.addPhoneCandidate(10800, 9010, 0, "N", nil, {"somemap"})
+end)
+```
+
+A spot with `mods` is offered only while at least one of them is active.
+If none is, `addPhoneCandidate` adds nothing and returns false. When a
+server drops the mod, a spot whose phone has not gone up yet is dropped
+like any spot taken out, and one whose phone is already standing stays.
+
+Each world draws every spot once, in a random order. A spot is used only if
+it is at least the server's Pay Phone Spacing from every phone already drawn
+or standing, so several spots closer together than that give one phone,
+chosen at random. A `chance` below 100 means the spot can pass up its turn,
+and then the gap can have none. The phone goes up the first time its square
+loads, and after that it is an ordinary pay phone, found by using it.
+
+Unlike a point's `phone`, `x, y` here is the phone's own square, and the
+traveller stands on the square in front of it, so check both in game. A spot
+you take out of your mod before its phone has gone up is dropped. One whose
+phone is already standing stays standing.
 
 ## Map authors
 

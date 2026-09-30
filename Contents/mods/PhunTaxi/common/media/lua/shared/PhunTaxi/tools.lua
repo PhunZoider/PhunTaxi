@@ -109,6 +109,40 @@ function tools.deepEquals(a, b)
     return true
 end
 
+-- A `mods` list, as a point or a phone candidate takes it: nil or empty asks
+-- for nothing, and a list of strings is satisfied by any ONE of them being
+-- active. Anything else is not a list and is refused, with the reason, so the
+-- caller can refuse the whole definition rather than guess.
+function tools.checkMods(mods)
+    if mods == nil then
+        return true
+    end
+    if type(mods) ~= "table" then
+        return false, "mods must be a list of mod ids"
+    end
+    for _, id in ipairs(mods) do
+        if type(id) ~= "string" or id == "" then
+            return false, "mods must be a list of mod ids"
+        end
+    end
+    return true
+end
+
+-- Whether a checked `mods` list is satisfied. The mod list is fixed for the
+-- session, so this answers the same at load as it does later.
+function tools.anyModActive(mods)
+    if mods == nil or #mods == 0 then
+        return true
+    end
+    local active = getActivatedMods()
+    for _, id in ipairs(mods) do
+        if active:contains(id) then
+            return true
+        end
+    end
+    return false
+end
+
 -- Case insensitive by default. Returns nil when the player is not online,
 -- which every caller here treats as "skip" and never as an error.
 function tools.getPlayerByUsername(name, caseSensitive)

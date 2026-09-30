@@ -19,27 +19,56 @@ Core.modules.store = Store
 -- phones once, and the next world starts with them. Global ModData is in the
 -- save and goes with it.
 --
--- Four things, each keyed so a hand edit is one line to find:
+-- One flat list, `entries`, since a point and a phone never share a square
+-- and a hand edit should not have to know which of four tables a thing
+-- lives in. Every entry is one of three:
 --
---   points  id -> {label, x, y, z, region, discovery, priority}
---           Points an admin added. `x, y, z` is where the character wakes
---           up. `discovery` is start, explore or granted; nothing else can
---           ever be unlocked without a thing on the map to build or use.
---           Any id is accepted, so a point of the same id as a shipped one
+--   a phone  {x, y, z, facing, label?, kept?}
+--           The default: no `type`, or "phone". A pay phone kept across
+--           wipes. `x, y, z` is where the traveller STANDS, as for a point,
+--           and `facing` (E, S, W or N) puts the phone on the square behind
+--           and picks its sprite. When that square first loads in a new
+--           world, one of ours is put there. See phone_swap.lua. It takes no
+--           id: its point id is built from the phone's square, because that
+--           is the id every account that used it has in its list. `label`
+--           renames that point. `kept: false` releases a shipped phone (see
+--           below): Release writes it, and taking the line out keeps the
+--           phone again.
+--   a point  {type = "point", id?, label?, x, y, z, facing?, region?,
+--            discovery?, priority?, deleted?}
+--           `x, y, z` is where the character wakes up, and `facing` asks
+--           for a phone behind it, exactly as for a phone. `id` defaults to
+--           Store.customId of the square, which is what one added in game
+--           gets, and `label` to the square's coordinates. `discovery` is
+--           start, explore (the default) or granted; nothing else can ever
+--           be unlocked without a thing on the map to build or use. Any id
+--           is accepted, so a point of the same id as a shipped one
 --           replaces it, which is how a placeholder's square gets fixed
 --           without code.
---   phones  "x_y_z" -> {x, y, z, facing}
---           Pay phones kept across wipes. `x, y, z` is the PHONE's square,
---           as in a swap record, and `facing` is E, S, W or N, which puts
---           the point on the square in front. When the square first loads
---           in a new world, one of ours is put there. See phone_swap.lua.
---   labels  id -> label
---           Renames, of any point, shipped or not.
---   deleted id -> true
---           Tombstones. A point of that id, shipped, a third party's or
---           one in this file, registers into Core.deleted instead of the
---           registry. Taking the line out puts it back. See
---           Core.deletePoint.
+--   an override  {id, label?, deleted?}
+--           No square: it changes a point this file does not define, a
+--           shipped one, a third party's, or a phone nobody kept. `label`
+--           renames it; `deleted` tombstones it, so it registers into
+--           Core.deleted instead of the registry. Taking the line out puts
+--           it back. See Core.deletePoint.
+--
+-- In memory it is still views, Core.saved.{points, phones, labels, deleted,
+-- released}, which is what the registry and phone_swap read: the list is
+-- only the file's shape, taken apart by sanitise and put back by document. A
+-- rename of a point the file defines is written into its own entry, so it
+-- has one label and not two, and so it cannot be reset to what it was.
+--
+-- Under the file sit the SHIPPED phones, Core.shipped (defaults.lua), a list
+-- in this same shape, as PhunZones puts its own zones under an admin's. They
+-- are merged into Core.saved.phones at load, so everything that reads the
+-- kept phones sees them without knowing where they came from, and the file
+-- holds only the difference: a shipped phone kept as shipped is not written,
+-- one with its facing changed is written whole and wins, and one released is
+-- written as `kept: false`. A shipped label is not an override but the
+-- phone's registered label (Store.shippedLabel), so Reset name goes back to
+-- it, and a later version's better label reaches every world that has not
+-- renamed the phone. A shipped entry with `mods` counts only when one of
+-- those mods is active, as for a point.
 --
 -- SERVER SIDE ONLY: getFileReader resolves against the Lua folder of the
 -- machine running it, so a client would read its own. The rules for the two
@@ -54,7 +83,13 @@ Core.modules.store = Store
 -- ---------------------------------------------------------------------------
 
 Store.FILE = Core.consts.storeFile
-Store.VERSION = 1
+Store.VERSION = 2
+
+-- Core.shipped, checked, by Store.readShipped: {phones, labels}.
+Store.shipped = {
+    phones = {},
+    labels = {}
+}
 
 -- What a point in the file may be found by.
 local KINDS = {
@@ -102,95 +137,211 @@ local function whole(value)
     return math.floor(value)
 end
 
+--- The label a point with none is given: its square.
+function Store.defaultLabel(x, y)
+    return tostring(x) .. ", " .. tostring(y)
+end
+
 --- A decoded file, checked. Returns clean {points, phones, labels, deleted}
 --- and a list of complaints. Never throws: an entry that is wrong is left
---- out and said so, and the rest of the file still counts.
+--- out and said so, and the rest of the file still counts. Of two entries
+--- for one thing, the later wins, and that is said too.
+---
+--- A third return of true means the file is refused whole, because reading
+--- it as empty would let the next change made in game write over it: the
+--- four table shape of version 1, or an `entries` that is an object.
 function Store.sanitise(doc)
     local out = {
         points = {},
         phones = {},
         labels = {},
-        deleted = {}
+        deleted = {},
+        released = {}
     }
     local problems = {}
+    local function complain(text)
+        table.insert(problems, text)
+    end
     if type(doc) ~= "table" then
-        table.insert(problems, "the file is not a JSON object")
+        complain("the file is not a JSON object")
         return out, problems
     end
+    if doc.entries == nil and (doc.points ~= nil or doc.phones ~= nil or doc.labels ~= nil or doc.deleted ~= nil) then
+        complain("the file is in the old shape (points, phones, labels, deleted); write it as one entries list")
+        return out, problems, true
+    end
+    local list = doc.entries
+    if list == nil then
+        return out, problems
+    end
+    if type(list) ~= "table" then
+        complain("entries is not a list")
+        return out, problems, true
+    end
+    for k in pairs(list) do
+        if type(k) ~= "number" then
+            complain("entries is not a list")
+            return out, problems, true
+        end
+    end
 
-    for id, def in pairs(type(doc.points) == "table" and doc.points or {}) do
-        local x, y = whole(type(def) == "table" and def.x), whole(type(def) == "table" and def.y)
-        local label = type(def) == "table" and Store.cleanLabel(def.label)
-        local discovery = type(def) == "table" and def.discovery or Core.discovery.explore
-        if type(id) ~= "string" or id == "" then
-            table.insert(problems, "a point with no id")
-        elseif not x or not y then
-            table.insert(problems, "point " .. id .. " has no x and y")
-        elseif not label then
-            table.insert(problems, "point " .. id .. " has no usable label")
-        elseif not KINDS[discovery] then
+    -- A string, nil for none, or false for one that is wrong and said so.
+    local function labelOf(where, entry)
+        if entry.label == nil then
+            return nil
+        end
+        local clean, why = Store.cleanLabel(entry.label)
+        if not clean then
+            complain(where .. (why == "IGUI_PhunTaxi_LabelTooLong" and " has a label that is too long" or
+                         " has a label that is not usable"))
+            return false
+        end
+        return clean
+    end
+
+    local function readPhone(where, entry, x, y, z)
+        if not FACINGS[entry.facing] then
+            complain(where .. " has facing '" .. tostring(entry.facing) .. "'; it must be E, S, W or N")
+            return
+        end
+        local label = labelOf(where, entry)
+        if label == false then
+            return
+        end
+        if entry.id ~= nil then
+            complain(where .. " is a phone, which is known by its square, so its id is ignored")
+        end
+        if entry.deleted then
+            -- Kept all the same. Taking the entry out is how a phone stops
+            -- being kept, and a flag that half says so is not.
+            complain(where .. " is a phone, which is released rather than deleted: take the entry out")
+        end
+        if entry.kept ~= nil and type(entry.kept) ~= "boolean" then
+            complain(where .. " has kept '" .. tostring(entry.kept) .. "'; it must be true or false")
+            return
+        end
+        -- The file says where the traveller stands, and the phone is behind.
+        -- Keyed by the phone's square, since that is what its point id is
+        -- built from.
+        local px, py = Core.phoneBehind(x, y, entry.facing)
+        local key = Store.keyOf(px, py, z)
+        if out.phones[key] or out.released[key] then
+            complain("two phones on " .. key .. "; the later one is used")
+        end
+        local phone = {
+            x = px,
+            y = py,
+            z = z,
+            facing = entry.facing
+        }
+        if entry.kept == false then
+            out.phones[key], out.released[key] = nil, phone
+        else
+            out.phones[key], out.released[key] = phone, nil
+        end
+        out.labels[Core.phonePointId(px, py, z)] = label or nil
+    end
+
+    local function readPoint(where, entry, x, y, z)
+        local id = entry.id
+        if id == nil then
+            id = Store.customId(x, y, z)
+        elseif type(id) ~= "string" or id == "" then
+            complain(where .. " has an id that is not a string")
+            return
+        end
+        local label = labelOf(where, entry)
+        if label == false then
+            return
+        end
+        local discovery = entry.discovery or Core.discovery.explore
+        if not KINDS[discovery] then
             -- Left out rather than read as explore. A point the admin meant
             -- as a start point and typed wrong would otherwise quietly become
             -- one nobody starts with.
-            table.insert(problems, "point " .. id .. " has discovery '" .. tostring(discovery) ..
-                "'; it must be start, explore or granted")
-        elseif def.phone ~= nil and not FACINGS[def.phone] then
+            complain(where .. " has discovery '" .. tostring(discovery) .. "'; it must be start, explore or granted")
+            return
+        end
+        if entry.facing ~= nil and not FACINGS[entry.facing] then
             -- Left out for the same reason: a point meant to have a phone
             -- is a taxi stop, and one quietly without it is not.
-            table.insert(problems, "point " .. id .. " has phone '" .. tostring(def.phone) ..
-                "'; it must be E, S, W or N")
-        else
-            out.points[id] = {
-                label = label,
-                x = x,
-                y = y,
-                z = whole(def.z) or 0,
-                region = type(def.region) == "string" and def.region ~= "" and def.region or nil,
-                discovery = discovery,
-                priority = type(def.priority) == "number" and def.priority or nil,
-                phone = def.phone
-            }
+            complain(where .. " has facing '" .. tostring(entry.facing) .. "'; it must be E, S, W or N")
+            return
+        end
+        if out.points[id] then
+            complain("two points with the id " .. id .. "; the later one is used")
+        end
+        out.points[id] = {
+            label = label or Store.defaultLabel(x, y),
+            x = x,
+            y = y,
+            z = z,
+            region = type(entry.region) == "string" and entry.region ~= "" and entry.region or nil,
+            discovery = discovery,
+            priority = type(entry.priority) == "number" and entry.priority or nil,
+            phone = entry.facing
+        }
+        out.deleted[id] = entry.deleted == true or nil
+    end
+
+    -- After every definition, so an override of a point the file defines
+    -- lands on it wherever the two are in the list.
+    local function readOverride(where, entry)
+        local id = entry.id
+        local label = labelOf(where, entry)
+        if label == false then
+            return
+        end
+        if label == nil and entry.deleted == nil then
+            complain(where .. " has no square, label or deleted, so it does nothing")
+            return
+        end
+        if label and out.points[id] then
+            -- A point the file defines has one label, its own.
+            out.points[id].label = label
+        elseif label then
+            out.labels[id] = label
+        end
+        -- `false` is somebody undoing a tombstone by hand, which is what
+        -- taking the line out does, so it is quiet.
+        if entry.deleted ~= nil then
+            out.deleted[id] = entry.deleted or nil
         end
     end
 
-    for key, def in pairs(type(doc.phones) == "table" and doc.phones or {}) do
-        local x, y = whole(type(def) == "table" and def.x), whole(type(def) == "table" and def.y)
-        local facing = type(def) == "table" and def.facing
-        if not x or not y then
-            table.insert(problems, "phone " .. tostring(key) .. " has no x and y")
-        elseif not FACINGS[facing] then
-            table.insert(problems, "phone " .. tostring(key) .. " has facing '" .. tostring(facing) ..
-                "'; it must be E, S, W or N")
+    local overrides = {}
+    for n, entry in ipairs(list) do
+        if type(entry) ~= "table" then
+            complain("entry " .. n .. " is not an object")
         else
-            local z = whole(def.z) or 0
-            -- Keyed by its own square whatever the file called it, since the
-            -- key is what the phone's point id is built from.
-            out.phones[Store.keyOf(x, y, z)] = {
-                x = x,
-                y = y,
-                z = z,
-                facing = facing
-            }
+            local x, y, z = whole(entry.x), whole(entry.y), whole(entry.z) or 0
+            local where = type(entry.id) == "string" and entry.id ~= "" and entry.id or
+                              (x and y and ("the entry at " .. Store.keyOf(x, y, z))) or ("entry " .. n)
+            local kind = entry.type or "phone"
+            if entry.deleted ~= nil and type(entry.deleted) ~= "boolean" then
+                complain(where .. " has deleted '" .. tostring(entry.deleted) .. "'; it must be true or false")
+            elseif entry.x == nil and entry.y == nil then
+                if type(entry.id) ~= "string" or entry.id == "" then
+                    complain(where .. " has no square and no id, so it says nothing")
+                else
+                    table.insert(overrides, {
+                        where = where,
+                        entry = entry
+                    })
+                end
+            elseif not x or not y then
+                complain(where .. " needs a number for both x and y")
+            elseif kind == "phone" then
+                readPhone(where, entry, x, y, z)
+            elseif kind == "point" then
+                readPoint(where, entry, x, y, z)
+            else
+                complain(where .. " has type '" .. tostring(entry.type) .. "'; it must be point or phone")
+            end
         end
     end
-
-    for id, label in pairs(type(doc.labels) == "table" and doc.labels or {}) do
-        local clean = Store.cleanLabel(label)
-        if type(id) ~= "string" or not clean then
-            table.insert(problems, "the rename of " .. tostring(id) .. " is not a usable label")
-        else
-            out.labels[id] = clean
-        end
-    end
-
-    for id, flag in pairs(type(doc.deleted) == "table" and doc.deleted or {}) do
-        -- Only true. `false` is somebody undoing a tombstone by hand, which
-        -- is what taking the line out does, so it is dropped quietly.
-        if type(id) ~= "string" or id == "" or (flag ~= true and flag ~= false) then
-            table.insert(problems, "the tombstone " .. tostring(id) .. " is not id: true")
-        elseif flag then
-            out.deleted[id] = true
-        end
+    for _, o in ipairs(overrides) do
+        readOverride(o.where, o.entry)
     end
 
     return out, problems
@@ -220,24 +371,90 @@ local function count(t)
     return n
 end
 
---- Read the file into Core.saved. Registers nothing: see registerAll.
+local function empty()
+    return {
+        points = {},
+        phones = {},
+        labels = {},
+        deleted = {},
+        released = {}
+    }
+end
+
+--- Core.shipped, checked the way the file is, into Store.shipped: {phones,
+--- labels}. An entry whose `mods` has none active is left out quietly, since
+--- that is what `mods` is for. A point or a tombstone is refused: a shipped
+--- point is registered in code, with Core.registerPoint.
+--- @return a list of complaints
+function Store.readShipped()
+    local list, problems = {}, {}
+    for n, entry in ipairs(Core.shipped) do
+        local mods = type(entry) == "table" and entry.mods or nil
+        local ok, why = Core.tools.checkMods(mods)
+        if not ok then
+            table.insert(problems, "entry " .. n .. ": " .. why)
+        elseif type(entry) == "table" and (entry.type == "point" or entry.deleted ~= nil) then
+            table.insert(problems, "entry " .. n .. " is a point or a tombstone; register a point in code instead")
+        elseif Core.tools.anyModActive(mods) then
+            table.insert(list, entry)
+        end
+    end
+    local clean, more = Store.sanitise({
+        entries = list
+    })
+    for _, complaint in ipairs(more) do
+        table.insert(problems, complaint)
+    end
+    Store.shipped = {
+        phones = clean.phones,
+        labels = clean.labels
+    }
+    return problems
+end
+
+--- The shipped label for a phone's point id, or nil. What registerRecord
+--- registers the phone as, under any rename in the file.
+function Store.shippedLabel(id)
+    return Store.shipped.labels[id]
+end
+
+--- The shipped phones under Core.saved.phones. One the file has on its
+--- square, kept or released, is the file's.
+local function mergeShipped()
+    local saved = Core.saved
+    for key, phone in pairs(Store.shipped.phones) do
+        if not saved.phones[key] and not saved.released[key] then
+            saved.phones[key] = {
+                x = phone.x,
+                y = phone.y,
+                z = phone.z,
+                facing = phone.facing
+            }
+        end
+    end
+end
+
+--- Read the file into Core.saved, over the shipped phones. Registers
+--- nothing: see registerAll.
 ---
 --- Never throws and never refuses to boot. A file that cannot be parsed is
 --- reported and treated as empty, and it is NOT written over until an admin
 --- changes something, so a stray comma costs a restart rather than the file.
+--- The shipped phones are kept either way.
 --- @return a list of complaints
 function Store.load()
-    Core.saved = {
-        points = {},
-        phones = {},
-        labels = {},
-        deleted = {}
-    }
+    Core.saved = empty()
     Store.unreadable = false
+    local problems = Store.readShipped()
+    for _, complaint in ipairs(problems) do
+        Core.logLn("shipped phones: " .. complaint)
+    end
+
     local text = readAll(Store.FILE)
     if not text or text == "" then
         Core.debugLn("no " .. Store.FILE .. "; nothing saved yet")
-        return {}
+        mergeShipped()
+        return problems
     end
 
     local doc, err = json.decode(text)
@@ -245,28 +462,126 @@ function Store.load()
         Store.unreadable = true
         Core.logLn("could not read " .. Store.FILE .. ": " .. tostring(err))
         Core.logLn("nothing saved is being used, and the file will not be written until it reads again")
-        return {tostring(err)}
+        mergeShipped()
+        table.insert(problems, tostring(err))
+        return problems
     end
 
-    local clean, problems = Store.sanitise(doc)
-    Core.saved = clean
-    for _, complaint in ipairs(problems) do
+    local clean, more, refused = Store.sanitise(doc)
+    for _, complaint in ipairs(more) do
         Core.logLn(Store.FILE .. ": " .. complaint)
+        table.insert(problems, complaint)
     end
-    Core.logLn(string.format("%s: %d point(s), %d phone(s), %d rename(s), %d deleted%s", Store.FILE,
-        count(clean.points), count(clean.phones), count(clean.labels), count(clean.deleted),
-        #problems > 0 and (", " .. #problems .. " ignored") or ""))
+    if refused then
+        Store.unreadable = true
+        Core.logLn("nothing saved is being used, and the file will not be written until it reads again")
+        mergeShipped()
+        return problems
+    end
+    Core.saved = clean
+    local own = count(clean.phones)
+    mergeShipped()
+    Core.logLn(string.format("%s: %d point(s), %d phone(s), %d shipped phone(s), %d released, %d rename(s), %d deleted%s",
+        Store.FILE, count(clean.points), own, count(clean.phones) - own, count(clean.released), count(clean.labels),
+        count(clean.deleted), #more > 0 and (", " .. #more .. " ignored") or ""))
     return problems
 end
 
---- The file as it should be written.
+local function sortedKeys(t)
+    local keys = {}
+    for k in pairs(t) do
+        table.insert(keys, k)
+    end
+    table.sort(keys)
+    return keys
+end
+
+--- The file as it should be written: Core.saved put back together as one
+--- list. Phones, then points, then overrides, each sorted, so a save that
+--- changed one thing is a diff of one entry. What a field defaults to is left
+--- out, which is what keeps an added point to a square and a label.
 function Store.document()
+    local saved = Core.saved
+    local entries = {}
+    -- What an entry has already carried, so it is not written again as an
+    -- override. A phone carries its rename, never a tombstone.
+    local labelled, tombstoned = {}, {}
+
+    local function phoneEntry(phone, kept)
+        local z = phone.z or 0
+        local id = Core.phonePointId(phone.x, phone.y, z)
+        local x, y = Core.phoneFront(phone.x, phone.y, phone.facing)
+        labelled[id] = true
+        table.insert(entries, {
+            x = x,
+            y = y,
+            z = z,
+            facing = phone.facing,
+            label = saved.labels[id],
+            kept = kept
+        })
+    end
+
+    -- A phone kept as it was shipped is not written, so the file holds only
+    -- what differs from defaults.lua. Its rename, if any, goes out below as
+    -- an override.
+    local shipped = Store.shipped.phones
+    for _, key in ipairs(sortedKeys(saved.phones)) do
+        local phone = saved.phones[key]
+        if not (shipped[key] and shipped[key].facing == phone.facing) then
+            phoneEntry(phone, nil)
+        end
+    end
+    -- Written even for a phone not shipped this time, such as one whose
+    -- `mods` is not active: the release still holds when it is again.
+    for _, key in ipairs(sortedKeys(saved.released)) do
+        if not saved.phones[key] then
+            phoneEntry(saved.released[key], false)
+        end
+    end
+
+    for _, id in ipairs(sortedKeys(saved.points)) do
+        local def = saved.points[id]
+        local z = def.z or 0
+        local label = saved.labels[id] or def.label
+        labelled[id], tombstoned[id] = true, true
+        table.insert(entries, {
+            type = "point",
+            id = id ~= Store.customId(def.x, def.y, z) and id or nil,
+            label = label ~= Store.defaultLabel(def.x, def.y) and label or nil,
+            x = def.x,
+            y = def.y,
+            z = z,
+            facing = def.phone,
+            region = def.region,
+            discovery = def.discovery ~= Core.discovery.explore and def.discovery or nil,
+            priority = def.priority,
+            deleted = saved.deleted[id] or nil
+        })
+    end
+
+    local rest = {}
+    for id in pairs(saved.labels) do
+        if not labelled[id] then
+            rest[id] = true
+        end
+    end
+    for id in pairs(saved.deleted) do
+        if not tombstoned[id] then
+            rest[id] = true
+        end
+    end
+    for _, id in ipairs(sortedKeys(rest)) do
+        table.insert(entries, {
+            id = id,
+            label = not labelled[id] and saved.labels[id] or nil,
+            deleted = saved.deleted[id] or nil
+        })
+    end
+
     return {
         version = Store.VERSION,
-        points = Core.saved.points,
-        phones = Core.saved.phones,
-        labels = Core.saved.labels,
-        deleted = Core.saved.deleted
+        entries = entries
     }
 end
 
@@ -475,40 +790,63 @@ end
 --- it faces are written, since region and label are worked out again in
 --- whatever world it lands in.
 function Store.keepPhone(key, record)
-    local was = Core.saved.phones[key]
-    Core.saved.phones[key] = {
+    local saved = Core.saved
+    local was, wasReleased = saved.phones[key], saved.released[key]
+    saved.phones[key] = {
         x = record.x,
         y = record.y,
         z = record.z or 0,
         facing = record.facing
     }
+    saved.released[key] = nil
     return commit(function()
-        Core.saved.phones[key] = was
+        saved.phones[key] = was
+        saved.released[key] = wasReleased
     end)
 end
 
+--- A shipped phone is released by saying so in the file, since taking its
+--- line out cannot stop defaults.lua keeping it.
 function Store.releasePhone(key)
-    local was = Core.saved.phones[key]
+    local saved = Core.saved
+    local was = saved.phones[key]
     if not was then
         return false
     end
-    Core.saved.phones[key] = nil
+    saved.phones[key] = nil
+    saved.released[key] = Store.shipped.phones[key] and was or nil
     return commit(function()
-        Core.saved.phones[key] = was
+        saved.phones[key] = was
+        saved.released[key] = nil
     end)
 end
 
 --- Rename a point and save it. Core.renamePoint's rules and returns, plus
 --- IGUI_PhunTaxi_NotSaved when the file would not write, in which case the
 --- old name is put back.
+---
+--- A point the file defines is renamed in its own entry rather than by an
+--- override, so its entry has one label: what it is called becomes what it
+--- is registered as, and there is nothing left for Reset name to go back to.
 function Store.rename(id, label)
     local was = Core.saved.labels[id]
+    local def = Core.saved.points[id]
+    local defWas = def and def.label
     local point, why = Core.renamePoint(id, label)
     if not point then
         return nil, why
     end
+    if def then
+        def.label = point.label
+        point.shippedLabel = point.label
+        Core.saved.labels[id] = nil
+    end
     if not commit(function()
         Core.saved.labels[id] = was
+        if def then
+            def.label = defWas
+            point.shippedLabel = defWas
+        end
         point.label = was or point.shippedLabel
     end) then
         return nil, "IGUI_PhunTaxi_NotSaved"

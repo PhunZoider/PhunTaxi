@@ -68,6 +68,13 @@ function stubs.install(root)
         }
     end
 
+    -- The active mod ids, as a set. Empty, so a `mods` list is unsatisfied
+    -- until a spec says otherwise.
+    stubs.mods = {}
+    function getActivatedMods()
+        return {contains = function(_, id) return stubs.mods[id] == true end}
+    end
+
     local modData = {}
     ModData = {getOrCreate = function(k) modData[k] = modData[k] or {}; return modData[k] end}
     function getOnlinePlayers() return nil end

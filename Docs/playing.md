@@ -13,7 +13,9 @@ There is no door out. A line pulses over the taxi: right click it and choose
 The window that opens lists the places you know, grouped by town, with a map
 beside them. Click a town to open it and fit the map to it, pick a place, and
 press **Go**. The ride is free, and you only get one: once you have chosen,
-that is where you start.
+that is where you start. A new character has seen nothing yet, so this one
+time the map shows the whole world; after that it shows only what you have
+walked.
 
 If you close the window by mistake, walk back to the taxi and open it again.
 
@@ -43,10 +45,13 @@ choose **Pick up the phone**. A live phone gives you "You hear heavy
 breathing" and you will remember it. Once you know a phone, the option is no
 longer offered on it.
 
+Some servers let you find a phone just by walking right up to it. Then it
+rings once as you arrive, and you remember it without picking it up.
+
 A live phone you have not found yet **rings** now and then while you are
 nearby. Follow the sound.
 
-Pay phones are never shown in your list until you have used them. Live ones
+Pay phones are never shown in your list until you have found them. Live ones
 cannot be picked up, moved, rotated, dismantled or smashed.
 
 ## Dying
@@ -64,8 +69,8 @@ unlocks go with it.
 If the server has it on, right click a pay phone you know and choose **Call
 a taxi**. The window lists the other pay phones you know, with the fare on the
 Go button. The places everybody knows from the start come with a pay phone of
-their own, right where you arrive, and you know it already. The fare is paid from your PhunMart change, and is taken only once
-the ride has gone ahead.
+their own, right where you arrive, and you know it already. The fare is paid
+from your PhunMart change, and is taken only once the ride has gone ahead.
 
 A taxi will not come:
 

@@ -85,6 +85,13 @@ function Client.announceUnlock(arguments)
         text = arguments.text or "IGUI_PhunTaxi_Discovered",
         arg = arguments.label
     })
+    -- The one entry that changed, merged rather than the whole list sent
+    -- again. Before the first payload there is nothing to merge into, and
+    -- that payload will carry it.
+    if arguments.point and Client.points then
+        Core.mergePoint(Client.points, arguments.point)
+        triggerEvent(Core.events.OnPointsReceived, Client.points)
+    end
     local phone = arguments.phone
     if phone and Client.ringPhone then
         Client.ringPhone(phone.x, phone.y, phone.z, FOUND_RING_MS)

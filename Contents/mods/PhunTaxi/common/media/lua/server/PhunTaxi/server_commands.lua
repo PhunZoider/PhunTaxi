@@ -224,12 +224,14 @@ Commands[Core.commands.usePhone] = function(player, args)
         return
     end
     if granted then
+        -- The one entry, not the whole list again: a grant changes nothing
+        -- else the payload says.
         Core.respond(player, Core.commands.unlocked, {
             id = point.id,
             label = point.label,
+            point = Unlocks.entryFor(point, true),
             text = "IGUI_PhunTaxi_PhoneAnswered"
         })
-        sendPoints(player)
     else
         Core.respond(player, Core.commands.notify, {
             text = "IGUI_PhunTaxi_PhoneKnown",

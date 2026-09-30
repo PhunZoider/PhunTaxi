@@ -376,7 +376,10 @@ function Picker:createChildren()
     self:addChild(self.map)
     -- A new character has seen nothing, so their own map is black. They get
     -- the whole map to choose on, as vanilla's spawn select does, and
-    -- everybody else gets the map they have actually walked.
+    -- everybody else gets the map they have actually walked. A first guess:
+    -- Client.pending can be stale here (no payload yet, or the last
+    -- character's after a death), so onListRefreshed sets it again from
+    -- every payload.
     self.map:initMap(not Client.pending)
     self.map:setOnPick(self, self.onPinClicked)
 
@@ -419,6 +422,9 @@ function Picker:onListRefreshed()
         return
     end
     self.map:setPoints(self:rows())
+    if Client.points ~= nil then
+        self.map:setHideUnvisited(not Client.pending)
+    end
     local point = self.list:selectedPoint()
     self.map:setSelected(point and point.id or nil, self.list.expanded)
     self.title = getText("IGUI_PhunTaxi_PickerTitle")

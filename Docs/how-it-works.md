@@ -45,6 +45,18 @@ cleared off the square you land on.
 On a server the vanilla spawn regions are collapsed to one square, so the
 vanilla selector has one choice and skips itself.
 
+## Extra pay phones are drawn, not rolled
+
+A vanilla phone is rolled the first time its square loads, so which phone on
+a street goes live depends on which one somebody walked up to first. That is
+fine where there are plenty. The extra spots PhunTaxi ships are for the empty
+parts of the map, where there are few, so they are all drawn at once, in a
+shuffled order, the first time anything loads in a new world: which spot
+fills a gap is chance, not the direction the first player came from. A spot
+a later version adds is drawn when it arrives, and one drawn already is
+never drawn again. A drawn spot counts for the spacing
+straight away, even though its phone only goes up when somebody gets there.
+
 ## Nobody rides into your safehouse
 
 Every ride, the first one and the taxi, is checked against the safehouse
@@ -76,6 +88,14 @@ tombstone in the file that keeps it out, not an edit of the registry, and
 taking the tombstone away brings it back as the code has it now. Every change is written at
 once, and undone if the write fails. A file that did not parse is never
 written over.
+
+Kept pay phones another mod ships work the same way round, as PhunZones'
+shipped zones do: they are merged under the file at boot, and the file holds
+only the difference. A shipped phone left alone is never written, so the next
+version's list reaches every server; releasing one writes a `kept: false`
+entry, because taking a line out of a file it was never in cannot undo it.
+PhunTaxi's own named phones are not kept: they are spots, drawn once per
+world and spaced, so each town gets one of them.
 
 ## One code path
 
