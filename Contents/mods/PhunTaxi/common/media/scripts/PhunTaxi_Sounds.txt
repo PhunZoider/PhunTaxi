@@ -8,7 +8,7 @@ module Base
         clip { 
 			file = media/sound/ringing.ogg, 
 			distanceMax = 30, 
-			volume = 0.3f 0.
+			volume = 0.3f
 		}
 	}
 

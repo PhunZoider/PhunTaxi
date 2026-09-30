@@ -54,7 +54,7 @@ get wrong.
 | `label` | required | What players see. An admin can rename it; your id never changes. |
 | `x`, `y` | required | The square the character arrives on. Pick open floor: nothing checks it, and a point on a wall drops a character into geometry. |
 | `z` | default 0 | The level. |
-| `region` | optional | Free text. Points are grouped under it in the player's list. Points with none go under "Elsewhere". |
+| `region` | optional | Free text. Points are grouped under it in the player's list. Points with none go under "Kentucky", which is also what PhunZones calls anywhere outside its named zones. |
 | `discovery` | default `explore` | How it is found; see below. |
 | `priority` | default 0 | Lower sorts first within a region. |
 | `room` | optional | A PhunInteriors room id to arrive inside. **Not used yet**: stored, and ignored. |
@@ -178,10 +178,10 @@ If none is, `addPhoneCandidate` adds nothing and returns false. When a
 server drops the mod, a spot whose phone has not gone up yet is dropped
 like any spot taken out, and one whose phone is already standing stays.
 
-Each world draws every spot once, in a random order. A spot is used only if
-it is at least the server's Pay Phone Spacing from every phone already drawn
-or standing, so several spots closer together than that give one phone,
-chosen at random. A `chance` below 100 means the spot can pass up its turn,
+Each world ranks every spot once, at random, together with the pay phones
+the maps put down. A spot is used only if it is at least the server's Pay
+Phone Spacing from every phone taken before it or standing, so several spots
+closer together than that give one phone, chosen at random. A `chance` below 100 means the spot can pass up its turn,
 and then the gap can have none. The phone goes up the first time its square
 loads, and after that it is an ordinary pay phone, found by using it.
 
@@ -189,6 +189,37 @@ Unlike a point's `phone`, `x, y` here is the phone's own square, and the
 traveller stands on the square in front of it, so check both in game. A spot
 you take out of your mod before its phone has gone up is dropped. One whose
 phone is already standing stays standing.
+
+## Pay phones on your map
+
+PhunTaxi does not look at every square for a vanilla pay phone. It ships a
+list of the ones the maps it was built against put down, and a pay phone on
+a map not in that list never goes live. Offer yours the same way:
+
+```lua
+Events.OnInitGlobalModData.Add(function()
+    if not PhunTaxi then
+        return
+    end
+    -- x, y, z of the vanilla phone, the way it faces, the mods whose map
+    -- puts it there, and optionally the room name of the building it is in
+    PhunTaxi.addMapPhone(4286, 15491, 0, "E", {"yourmapmod"}, "gasstore")
+end)
+```
+
+The room is a room name as your map's rooms carry it, and it names the
+phone ("Gas station") from the table `PhunTaxi.phones.roomWords`, which you
+can add to. A room with no word there, or none given, is labelled
+"Pay phone".
+
+A map phone is ranked with the spots and goes live at the server's Pay Phone
+Chance, but only by replacing a vanilla phone standing on that square. If
+none is there when the square loads (another map hides the cell, or an
+update moved it), it is dropped for that world and the next nearby takes its
+place. A spot (`addPhoneCandidate`) on the same square replaces it.
+
+PhunTaxi's `scripts/phones.pl` reads every phone out of a server's maps and
+writes this list; run it with `--lua` against your own server to get yours.
 
 ## Map authors
 

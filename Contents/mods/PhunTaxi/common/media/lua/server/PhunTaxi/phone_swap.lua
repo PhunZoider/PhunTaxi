@@ -11,14 +11,21 @@ local PhoneSwap = {}
 -- ---------------------------------------------------------------------------
 -- Swapping vanilla pay phones for ours, and making each one a spawn point.
 --
--- PhunMart's vending machine swap, applied to phones. On LoadGridsquare a
--- vanilla phone listed in Core.phones.targets gets ONE roll: it is stamped
--- win or lose, so a chunk loading again does not roll it again. A win at
--- PhoneChance percent swaps it for ours, unless a swapped phone already
--- stands within PhoneDistance, which is what stops one street having three.
--- A PhunZones zone may set its own of both (`phoneChance`, `phoneDistance`,
--- see chanceAt and spacingAt), so an admin can crowd a city with phones and
--- leave the countryside sparse.
+-- Every square a phone may go on is known before any of them loads: the
+-- phones the maps put down (map_phones.lua, read out of the lotpacks by
+-- scripts/phones.pl) and the spots with no phone at all (defaults.lua,
+-- candidates.lua). Together they are the POOL, and which of them get one of
+-- ours is decided for the whole world at once (resolve), not square by
+-- square as they load. So LoadGridsquare looks at a square only if the pool
+-- or a record names it, and every other square, nearly all of them, costs a
+-- table lookup.
+--
+-- A map phone goes up at PhoneChance percent and a spot at its own chance,
+-- and either only if no phone already taken or standing is within
+-- PhoneDistance, which is what stops one street having three. A PhunZones
+-- zone may set its own of both (`phoneChance`, `phoneDistance`, see chanceAt
+-- and spacingAt), so an admin can crowd a city with phones and leave the
+-- countryside sparse.
 --
 -- A swapped phone is recorded in global ModData under its square, and every
 -- record registers a point at the square in FRONT of the phone, since the
@@ -55,27 +62,50 @@ local PhoneSwap = {}
 -- or is deleted, leaves its phone standing as an ordinary swapped phone, and
 -- one that comes back takes it over again.
 --
--- A CANDIDATE is a square a phone may go on where there is no vanilla phone
--- to swap (Core.addPhoneCandidate). They are drawn once per world, all at
--- once and in a shuffled order, so which of a close group wins is chance and
--- not whichever square a player happened to load first. A winner is recorded
--- straight away, `candidate` and `pending`, so it counts for PhoneDistance
--- from then on and a vanilla phone near it loses its roll. Its phone goes up
--- the first time its square loads, and from then on it is an ordinary swapped
--- phone: carried off, it is forgotten, and not drawn again until a new world.
--- The draws are kept in Core.data.candidates, so a wipe draws them afresh.
+-- The POOL, in order. Each square in it (a CANDIDATE, Core.phones.candidates)
+-- is given a random rank the first time this world sees it, kept in
+-- Core.data.phoneRanks, and resolve walks them in rank order, taking each
+-- that is far enough from every phone standing and every one taken so far.
+-- Ranks, and not an order rolled as squares load, so which of a close group
+-- wins is chance and not whichever side the first player came in from. A
+-- taken square is recorded at once, `candidate` and `pending`, so it counts
+-- for PhoneDistance from then on, and its phone goes up the first time its
+-- square loads. From then on it is an ordinary swapped phone.
+--
+-- Only a pending phone is ever moved. Nobody has seen one, so resolve is run
+-- again whenever the pool or the phones standing change, and it may take a
+-- different square each time. Two things retire a square for the world
+-- (Core.data.phoneDropped): a map phone whose square loads with no vanilla
+-- phone on it (a map update moved it, or another map hides the cell), and a
+-- phone of ours carried off. Either way the next in rank near it takes its
+-- place. A wipe of global ModData takes the ranks, so a new world draws anew.
 -- ---------------------------------------------------------------------------
 
 -- How close a player must stand to use a phone, in squares either way. The
 -- phone is used from the square in front, so two leaves room for a diagonal.
 local REACH = 2
 
--- x -> y -> true for every recorded phone, so LoadGridsquare, which fires for
--- every square that loads, can rule a square out without building a key.
+-- x -> y -> true for every recorded phone and every square in the pool, so
+-- LoadGridsquare, which fires for every square that loads, can rule a square
+-- out without building a key. Across levels: a square it names on another
+-- level is ruled out by its key.
 local index = {}
 
--- The candidates version the draw last ran for. See drawCandidates.
-local drawnVersion = nil
+-- The pool's version resolve last ran for, and whether something it reads
+-- has changed since: a phone standing or gone, a square dropped, a zone.
+local resolvedVersion = nil
+local dirty = true
+
+-- Ranks are drawn from 0 to RANKS - 1. The last two digits are the square's
+-- chance roll, so one number per square decides both.
+local RANKS = 1000000
+
+-- Squares per side of a bucket in resolve's spacing grid.
+local BUCKET = 64
+
+-- key -> {chance, spacing} for pool squares, so resolve asks PhunZones about
+-- a square once per boot, not once per resolve. Cleared when the zones are.
+local zoneCache = {}
 
 PhoneSwap.ready = false
 
@@ -100,11 +130,18 @@ function PhoneSwap.idOf(key)
     return record and record.point or PhoneSwap.pointId(key)
 end
 
+local function indexSquare(x, y)
+    index[x] = index[x] or {}
+    index[x][y] = true
+end
+
 local function rebuildIndex()
     index = {}
     for _, record in pairs(PhoneSwap.store()) do
-        index[record.x] = index[record.x] or {}
-        index[record.x][record.y] = true
+        indexSquare(record.x, record.y)
+    end
+    for _, c in pairs(Core.phones.candidates) do
+        indexSquare(c.x, c.y)
     end
 end
 
@@ -182,13 +219,22 @@ function PhoneSwap.locate(x, y)
     return title, subtitle
 end
 
---- What the picker shows, when the phone has no shipped or admin name.
-function PhoneSwap.labelFor(record)
+--- What the picker shows, when the phone has no shipped or admin name: the
+--- building a map puts it in (Core.phones.roomWords), with the zone's
+--- subtitle before it when there is one. The room is read from the pool, not
+--- kept on the record, so a regenerated map_phones.lua renames every phone
+--- that has no name of its own at the next boot.
+function PhoneSwap.labelFor(record, key)
+    local candidate = key and Core.phones.candidates[key]
+    local word = candidate and candidate.room and Core.phones.roomWords[candidate.room]
+    if word then
+        return record.subtitle and (record.subtitle .. " " .. word) or word
+    end
     return record.subtitle and (record.subtitle .. " pay phone") or "Pay phone"
 end
 
 --- Register one record as a point. The region comes from PhunZones and is
---- nil without it, which the picker files under "Elsewhere".
+--- nil without it, which the picker files under "Kentucky" (IGUI_PhunTaxi_Elsewhere).
 ---
 --- A phone a point asked for registers nothing: that point is its point, and
 --- is returned instead.
@@ -201,7 +247,7 @@ function PhoneSwap.registerRecord(key, record)
     return Core.registerPoint(id, {
         -- A shipped name is what the phone is registered as, so Reset name
         -- goes back to it rather than to "Pay phone".
-        label = Store.shippedLabel(id) or PhoneSwap.labelFor(record),
+        label = Store.shippedLabel(id) or PhoneSwap.labelFor(record, key),
         region = record.region,
         x = fx,
         y = fy,
@@ -257,6 +303,10 @@ PhoneSwap.located = false
 --- that had it.
 function PhoneSwap.relocate()
     PhoneSwap.located = true
+    -- A zone may set its own chance and spacing, so the pool is taken again
+    -- now that they can be read.
+    zoneCache = {}
+    dirty = true
     for key, record in pairs(PhoneSwap.store()) do
         local region, subtitle = PhoneSwap.locate(record.x, record.y)
         if region ~= record.region or subtitle ~= record.subtitle then
@@ -271,6 +321,8 @@ end
 --- read: before that any record written would go into a table the load then
 --- replaces, and no kept phone would be known.
 function PhoneSwap.start()
+    -- The one draw per world this replaced kept its results here.
+    Core.data.candidates = nil
     PhoneSwap.adopt()
     for key, record in pairs(PhoneSwap.store()) do
         PhoneSwap.registerRecord(key, record)
@@ -278,9 +330,11 @@ function PhoneSwap.start()
     -- After the records, so a phone whose point has gone since the last boot
     -- is registered once, by the sync, as an ordinary phone.
     PhoneSwap.syncDeclared()
-    -- Not drawn here: a third party adding candidates from
+    -- Not resolved here: a third party adding to the pool from
     -- OnInitGlobalModData may not have yet. The first square to load asks.
-    drawnVersion = nil
+    resolvedVersion = nil
+    dirty = true
+    zoneCache = {}
     PhoneSwap.ready = true
 end
 
@@ -347,89 +401,217 @@ function PhoneSwap.syncDeclared()
     syncedVersion = Core.registryVersion
 end
 
---- Shuffle a list in place. `roll(n)` answers 0 to n-1, as ZombRand does.
-local function shuffle(list, roll)
-    for i = #list, 2, -1 do
-        local j = roll(i) + 1
-        list[i], list[j] = list[j], list[i]
-    end
-    return list
+--- Spacing grid for resolve: the points placed so far, bucketed, and flat.
+local function newGrid()
+    return {
+        cells = {},
+        all = {}
+    }
 end
 
---- Draw every candidate this world has not drawn yet. See the header.
+local function gridAdd(grid, x, y)
+    local bx, by = math.floor(x / BUCKET), math.floor(y / BUCKET)
+    local column = grid.cells[bx]
+    if not column then
+        column = {}
+        grid.cells[bx] = column
+    end
+    local cell = column[by]
+    if not cell then
+        cell = {}
+        column[by] = cell
+    end
+    local p = {x, y}
+    table.insert(cell, p)
+    table.insert(grid.all, p)
+end
+
+local function nearAny(list, x, y, limit)
+    for _, p in ipairs(list) do
+        local dx, dy = p[1] - x, p[2] - y
+        if (dx * dx) + (dy * dy) < limit then
+            return true
+        end
+    end
+    return false
+end
+
+--- Is x, y at least `distance` from everything in the grid? By bucket when
+--- the distance is small, and down the flat list when it is so large that
+--- the buckets to look in outnumber the points.
+local function gridClear(grid, x, y, distance)
+    if distance <= 0 then
+        return true
+    end
+    local limit = distance * distance
+    local span = math.ceil(distance / BUCKET)
+    if (span * 2 + 1) * (span * 2 + 1) > #grid.all then
+        return not nearAny(grid.all, x, y, limit)
+    end
+    local bx, by = math.floor(x / BUCKET), math.floor(y / BUCKET)
+    for i = bx - span, bx + span do
+        local column = grid.cells[i]
+        if column then
+            for j = by - span, by + span do
+                local cell = column[j]
+                if cell and nearAny(cell, x, y, limit) then
+                    return false
+                end
+            end
+        end
+    end
+    return true
+end
+
+--- A pool square's chance and spacing, from its zone, once per boot.
+local function zoneOf(key, c)
+    local z = zoneCache[key]
+    if not z then
+        z = {
+            chance = c.chance or PhoneSwap.chanceAt(c.x, c.y),
+            spacing = PhoneSwap.spacingAt(c.x, c.y)
+        }
+        zoneCache[key] = z
+    end
+    return z
+end
+
+--- Something resolve reads has changed, so the next square to load runs it.
+function PhoneSwap.touch()
+    dirty = true
+end
+
+--- Decide which squares in the pool get a phone. See the header.
 ---
---- Asked before the first square is looked at, and cheap after that: it
---- follows Core.phones.candidatesVersion, so a candidate added late is drawn
---- the next time a square loads. It is never asked at boot, because at boot a
---- candidate not added yet cannot be told from one that was taken out, and a
---- winner whose candidate has been taken out, and whose phone has not gone up,
---- is dropped here: that is a square moved in code because it was a wall.
+--- Asked before a square is looked at, and cheap unless something changed:
+--- the pool (Core.phones.candidatesVersion), a phone standing or gone, a
+--- square dropped, or the zones. Never at boot, because a third party may
+--- still be adding to the pool. A pending phone whose square is no longer in
+--- the pool, moved in code because it was a wall, is dropped here.
 ---
---- `roll` is ZombRand in game, a parameter so the spec can draw without it.
-function PhoneSwap.drawCandidates(roll)
-    local candidates = Core.phones.candidates
-    if drawnVersion == Core.phones.candidatesVersion then
-        return
+--- `roll` is ZombRand in game, a parameter so the spec can rank without it.
+--- Returns true if it ran.
+function PhoneSwap.resolve(roll)
+    if not dirty and resolvedVersion == Core.phones.candidatesVersion then
+        return false
     end
     roll = roll or ZombRand
     -- A point's phone counts for the spacing, so it has to be recorded first.
     PhoneSwap.syncDeclared()
     local store = PhoneSwap.store()
-    Core.data.candidates = Core.data.candidates or {}
-    local drawn = Core.data.candidates
+    local candidates = Core.phones.candidates
+    Core.data.phoneRanks = Core.data.phoneRanks or {}
+    Core.data.phoneDropped = Core.data.phoneDropped or {}
+    local ranks, dropped = Core.data.phoneRanks, Core.data.phoneDropped
 
-    for key, record in pairs(store) do
-        if record.pending and not candidates[key] then
-            store[key] = nil
-            Core.removePoint(PhoneSwap.pointId(key))
-            Core.logLn("pay phone candidate at " .. key .. " is no longer offered, so it will not go up")
+    -- Every phone that is not pending stays where it is, and spaces the rest.
+    local grid = newGrid()
+    for _, record in pairs(store) do
+        if not record.pending then
+            gridAdd(grid, record.x, record.y)
         end
     end
-    for key in pairs(drawn) do
-        if not candidates[key] then
-            drawn[key] = nil
-        end
-    end
-    rebuildIndex()
 
-    -- Sorted first, so the shuffle is the only thing that decides the order.
-    local keys = {}
+    -- The squares still in play: offered, not retired, and not already a
+    -- phone of ours (kept, a point's, built, or one that went up).
+    local keys, unranked = {}, {}
     for key in pairs(candidates) do
-        if drawn[key] == nil then
+        local record = store[key]
+        if not dropped[key] and not (record and not record.pending) then
             table.insert(keys, key)
+            if ranks[key] == nil then
+                table.insert(unranked, key)
+            end
         end
     end
-    table.sort(keys)
-    shuffle(keys, roll)
+    -- New squares ranked in key order, so the same rolls rank them the same.
+    Core.tools.sort(unranked)
+    for _, key in ipairs(unranked) do
+        ranks[key] = roll(RANKS)
+    end
+    Core.tools.sort(keys, function(a, b)
+        if ranks[a] ~= ranks[b] then
+            return ranks[a] < ranks[b]
+        end
+        return a < b
+    end)
 
-    local won = 0
+    local taken = {}
     for _, key in ipairs(keys) do
         local c = candidates[key]
-        -- A square already holding a phone of ours (kept, a point's, built)
-        -- is that phone's, whatever the spacing says.
-        local wins = not store[key] and roll(100) < c.chance and PhoneSwap.farEnough(c.x, c.y)
-        drawn[key] = wins and true or false
-        if wins then
+        local zone = zoneOf(key, c)
+        if ranks[key] % 100 < zone.chance and gridClear(grid, c.x, c.y, zone.spacing) then
+            taken[key] = true
+            gridAdd(grid, c.x, c.y)
+        end
+    end
+
+    local moved = 0
+    for key, record in pairs(store) do
+        if record.pending and not taken[key] then
+            store[key] = nil
+            Core.removePoint(PhoneSwap.pointId(key))
+            moved = moved + 1
+        end
+    end
+    local fresh = {}
+    for key in pairs(taken) do
+        if not store[key] then
+            local c = candidates[key]
+            -- Located now, not left for settle: relocate has already run
+            -- this boot, so a phone taken after it would otherwise sit in no
+            -- region (the editor's "Kentucky" fallback) until its square loads.
+            -- Resolve runs only once PhunZones can answer.
+            local region, subtitle = PhoneSwap.locate(c.x, c.y)
             local record = {
                 x = c.x,
                 y = c.y,
                 z = c.z,
                 facing = c.facing,
+                region = region,
+                subtitle = subtitle,
                 candidate = true,
                 pending = true,
                 created = Core.now()
             }
             store[key] = record
-            index[c.x] = index[c.x] or {}
-            index[c.x][c.y] = true
             PhoneSwap.registerRecord(key, record)
-            won = won + 1
+            table.insert(fresh, record)
         end
     end
-    if #keys > 0 then
-        Core.logLn("drew " .. #keys .. " pay phone candidates, " .. won .. " will go up")
+
+    dirty = false
+    resolvedVersion = Core.phones.candidatesVersion
+    rebuildIndex()
+    if moved > 0 or #fresh > 0 then
+        Core.logLn("pay phone pool: " .. #keys .. " squares in play, " .. #fresh .. " taken, " .. moved ..
+                       " let go")
     end
-    drawnVersion = Core.phones.candidatesVersion
+
+    -- One taken on a square that has already loaded would otherwise wait for
+    -- it to load again.
+    local cell = getCell()
+    for _, record in ipairs(fresh) do
+        local square = cell and cell:getGridSquare(record.x, record.y, record.z)
+        if square then
+            PhoneSwap.visit(square)
+        end
+    end
+    return true
+end
+
+--- Retire a pool square for this world, and let the next in rank near it
+--- have its place.
+function PhoneSwap.drop(key, why)
+    local store = PhoneSwap.store()
+    if store[key] and store[key].pending then
+        store[key] = nil
+        Core.removePoint(PhoneSwap.pointId(key))
+    end
+    Core.data.phoneDropped = Core.data.phoneDropped or {}
+    Core.data.phoneDropped[key] = true
+    dirty = true
+    Core.logLn("pay phone at " .. key .. " " .. why .. ", so another nearby may take its place")
 end
 
 --- Is x, y at least PhoneDistance (or its zone's, see spacingAt) from every
@@ -467,8 +649,9 @@ function PhoneSwap.add(x, y, z, facing)
         created = Core.now()
     }
     PhoneSwap.store()[key] = record
-    index[x] = index[x] or {}
-    index[x][y] = true
+    indexSquare(x, y)
+    -- A pending phone too near this one has to give way.
+    dirty = true
     Core.debugLn("pay phone at " .. key .. " (" .. tostring(region) .. ")")
     return PhoneSwap.registerRecord(key, record)
 end
@@ -479,7 +662,11 @@ end
 ---
 --- Never a kept phone: that is put back instead, and has to be released
 --- first to be forgotten. Nor one a point asked for, which is put back too,
---- nor a drawn candidate whose phone has not gone up yet.
+--- nor a pending one whose phone has not gone up yet.
+---
+--- A square in the pool is retired for the world as it goes, so the phone is
+--- not put straight back: somebody took it, and the next in rank nearby
+--- takes its place instead.
 function PhoneSwap.forget(x, y, z)
     local key = keyOf(x, y, z)
     local store = PhoneSwap.store()
@@ -488,6 +675,11 @@ function PhoneSwap.forget(x, y, z)
     end
     store[key] = nil
     Core.removePoint(PhoneSwap.pointId(key))
+    dirty = true
+    if Core.phones.candidates[key] then
+        Core.data.phoneDropped = Core.data.phoneDropped or {}
+        Core.data.phoneDropped[key] = true
+    end
     rebuildIndex()
     Core.logLn("pay phone at " .. key .. " is gone, so it is no longer a spawn point")
     return true
@@ -530,7 +722,6 @@ function PhoneSwap.replace(square, old, spriteName, stamp)
     end
     local phone = IsoObject.new(square:getCell(), square, spriteName)
     local md = phone:getModData()
-    md[Core.consts.phoneRolledKey] = true
     for k, v in pairs(stamp or {}) do
         md[k] = v
     end
@@ -550,42 +741,8 @@ function PhoneSwap.replace(square, old, spriteName, stamp)
     return true
 end
 
---- The one roll a vanilla phone gets.
-function PhoneSwap.roll(square, obj, facing)
-    local md = obj:getModData()
-    if md[Core.consts.phoneRolledKey] then
-        return
-    end
-    -- Not rolled on the sandbox chance while PhunZones cannot yet say what
-    -- this zone's is: left unstamped, it rolls the next time it loads.
-    if zonesPending() then
-        return
-    end
-    local x, y, z = square:getX(), square:getY(), square:getZ()
-    local chance = PhoneSwap.chanceAt(x, y)
-    -- Zero turns the swap off here and leaves the phone unstamped, so
-    -- turning it on later, in the sandbox or for this zone, still gives it
-    -- its roll.
-    if chance <= 0 then
-        return
-    end
-    -- Stamped before the roll, so a loss is as final as a win.
-    md[Core.consts.phoneRolledKey] = true
-
-    if ZombRand(100) >= chance then
-        return
-    end
-    if not PhoneSwap.farEnough(x, y) then
-        return
-    end
-    local spriteName = Core.phoneSpriteFor(facing, ZombRand)
-    if spriteName and PhoneSwap.replace(square, obj, spriteName) then
-        PhoneSwap.add(x, y, z, facing)
-    end
-end
-
 --- LoadGridsquare. Fires for every square that loads, so the common case, a
---- square with no phone on it and none recorded, has to cost next to nothing.
+--- square neither the pool nor a record names, is two table lookups and out.
 function PhoneSwap.loadGridsquare(square)
     if not PhoneSwap.ready or not square then
         return
@@ -594,53 +751,16 @@ function PhoneSwap.loadGridsquare(square)
         PhoneSwap.relocate()
     end
     PhoneSwap.syncDeclared()
-    -- Before anything reads the records, so a drawn candidate reserves its
-    -- spacing before a vanilla phone on this square rolls.
-    PhoneSwap.drawCandidates()
-    local x, y = square:getX(), square:getY()
-    local column = index[x]
-    local record = column ~= nil and column[y] == true and PhoneSwap.store()[keyOf(x, y, square:getZ())] or nil
-
-    local objects = square:getObjects()
-    local found, candidate, candidateFacing = nil, nil, nil
-    for i = 0, objects:size() - 1 do
-        local obj = objects:get(i)
-        local sprite = obj:getSprite()
-        local name = sprite and sprite:getName()
-        if name then
-            if Core.phoneFacing(name) then
-                found = found or name
-            -- Looked for whatever the sandbox chance is, since a zone may set
-            -- its own. Only a square with a vanilla phone asks PhunZones.
-            elseif not candidate then
-                local facing = Core.phoneTargetFacing(name)
-                if facing then
-                    candidate, candidateFacing = obj, facing
-                end
-            end
-        end
+    -- Not while PhunZones cannot yet say what a zone's chance and spacing
+    -- are. A pending phone from an earlier boot still goes up meanwhile.
+    if not zonesPending() then
+        PhoneSwap.resolve()
     end
-
-    if record and not found then
-        -- Kept, or a point's, so put back, over the vanilla phone a new
-        -- world has here. A point's phone is first put up this way too, and
-        -- so is a drawn candidate's.
-        if record.kept or record.point or record.pending then
-            PhoneSwap.restore(square, record, candidate)
-            return
-        end
-        -- Recorded here and not standing here: somebody carried it off.
-        PhoneSwap.forget(x, y, square:getZ())
-    elseif found and not record then
-        PhoneSwap.recordStanding(square, found)
+    local column = index[square:getX()]
+    if column == nil or column[square:getY()] == nil then
         return
-    elseif found and record.pending then
-        -- One of ours was already here, so there is nothing to put up.
-        PhoneSwap.settle(keyOf(x, y, square:getZ()), record)
     end
-    if candidate then
-        PhoneSwap.roll(square, candidate, candidateFacing)
-    end
+    PhoneSwap.visit(square)
 end
 
 --- Put a kept phone, or a point's, back on its square, replacing `old` when
@@ -692,6 +812,69 @@ local function phonesOn(square)
 end
 PhoneSwap.phonesOn = phonesOn
 PhoneSwap.keyOf = keyOf
+
+--- A loaded square the pool or a record names: bring what stands on it in
+--- line with what is recorded.
+function PhoneSwap.visit(square)
+    local x, y, z = square:getX(), square:getY(), square:getZ()
+    local key = keyOf(x, y, z)
+    local record = PhoneSwap.store()[key]
+    local offered = Core.phones.candidates[key]
+    if not record and not offered then
+        -- The index is by column, so this is another level of a square it
+        -- names.
+        return
+    end
+    local ours, oursName, vanilla, vanillaFacing = phonesOn(square)
+
+    if not record then
+        -- In the pool and not taken, or retired: only one of ours standing
+        -- here is news, which is how the phones come back after a wipe of
+        -- global ModData.
+        if ours then
+            PhoneSwap.recordStanding(square, oursName)
+        end
+        return
+    end
+    if ours then
+        if record.pending then
+            -- One of ours was already here, so there is nothing to put up.
+            PhoneSwap.settle(key, record)
+        end
+        return
+    end
+    if record.pending and offered and offered.replace then
+        if not vanilla then
+            PhoneSwap.drop(key, "has no vanilla phone to replace")
+            return
+        end
+        -- What stands here decides which way ours faces.
+        record.facing = vanillaFacing
+    end
+    -- Kept, a point's, or taken from the pool, so put up, over the vanilla
+    -- phone a new world has here.
+    if record.kept or record.point or record.pending then
+        PhoneSwap.restore(square, record, vanilla)
+        return
+    end
+    -- Recorded here and not standing here: somebody carried it off.
+    PhoneSwap.forget(x, y, z)
+end
+
+--- The squares of phones standing that the pool does not name (kept, built,
+--- a point's, one put down from an item), for the client, whose ring looks
+--- only at squares it has been told of. The pool is shared code, so the
+--- client knows those already.
+function PhoneSwap.standingKeys()
+    local out = {}
+    for key, record in pairs(PhoneSwap.store()) do
+        if not record.pending and not Core.phones.candidates[key] then
+            table.insert(out, key)
+        end
+    end
+    Core.tools.sort(out)
+    return out
+end
 
 --- Keep the phone on a square across wipes. An admin action.
 ---

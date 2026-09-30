@@ -1,13 +1,5 @@
 VERSION = 1,
 
-option PhunTaxi.Debug
-{
-    type = boolean,
-    default = false,
-    page = PhunTaxi,
-    translation = PhunTaxi_Debug,
-}
-
 option PhunTaxi.UseSpawnRoom
 {
     type = boolean,
@@ -16,48 +8,12 @@ option PhunTaxi.UseSpawnRoom
     translation = PhunTaxi_UseSpawnRoom,
 }
 
-option PhunTaxi.DiscoveryRadius
-{
-    type = integer,
-    default = 12,
-    min = 1,
-    max = 300,
-    page = PhunTaxi,
-    translation = PhunTaxi_DiscoveryRadius,
-}
-
-option PhunTaxi.ShowUndiscovered
+option PhunTaxi.TaxiFastTravel
 {
     type = boolean,
     default = false,
     page = PhunTaxi,
-    translation = PhunTaxi_ShowUndiscovered,
-}
-
-option PhunTaxi.AllowBuiltPoints
-{
-    type = boolean,
-    default = true,
-    page = PhunTaxi,
-    translation = PhunTaxi_AllowBuiltPoints,
-}
-
-option PhunTaxi.BuiltPointLimit
-{
-    type = integer,
-    default = 5,
-    min = 0,
-    max = 99,
-    page = PhunTaxi,
-    translation = PhunTaxi_BuiltPointLimit,
-}
-
-option PhunTaxi.RespawnPenalty
-{
-    type = boolean,
-    default = false,
-    page = PhunTaxi,
-    translation = PhunTaxi_RespawnPenalty,
+    translation = PhunTaxi_TaxiFastTravel,
 }
 
 option PhunTaxi.PhoneChance
@@ -80,6 +36,34 @@ option PhunTaxi.PhoneDistance
     translation = PhunTaxi_PhoneDistance,
 }
 
+option PhunTaxi.PhoneDiscoverRadius
+{
+    type = integer,
+    default = 0,
+    min = 0,
+    max = 30,
+    page = PhunTaxi,
+    translation = PhunTaxi_PhoneDiscoverRadius,
+}
+
+option PhunTaxi.DiscoveryRadius
+{
+    type = integer,
+    default = 12,
+    min = 1,
+    max = 300,
+    page = PhunTaxi,
+    translation = PhunTaxi_DiscoveryRadius,
+}
+
+option PhunTaxi.ShowUndiscovered
+{
+    type = boolean,
+    default = false,
+    page = PhunTaxi,
+    translation = PhunTaxi_ShowUndiscovered,
+}
+
 option PhunTaxi.PhoneRing
 {
     type = boolean,
@@ -98,32 +82,14 @@ option PhunTaxi.PhoneRingRange
     translation = PhunTaxi_PhoneRingRange,
 }
 
-option PhunTaxi.BuiltPhoneDistance
+option PhunTaxi.PhoneRingSeconds
 {
     type = integer,
-    default = 50,
-    min = 0,
-    max = 10000,
+    default = 30,
+    min = 1,
+    max = 300,
     page = PhunTaxi,
-    translation = PhunTaxi_BuiltPhoneDistance,
-}
-
-option PhunTaxi.PhoneDiscoverRadius
-{
-    type = integer,
-    default = 0,
-    min = 0,
-    max = 30,
-    page = PhunTaxi,
-    translation = PhunTaxi_PhoneDiscoverRadius,
-}
-
-option PhunTaxi.TaxiFastTravel
-{
-    type = boolean,
-    default = false,
-    page = PhunTaxi,
-    translation = PhunTaxi_TaxiFastTravel,
+    translation = PhunTaxi_PhoneRingSeconds,
 }
 
 option PhunTaxi.TaxiCentsPerSquare
@@ -154,4 +120,40 @@ option PhunTaxi.TaxiZombieRadius
     max = 50,
     page = PhunTaxi,
     translation = PhunTaxi_TaxiZombieRadius,
+}
+
+option PhunTaxi.AllowBuiltPoints
+{
+    type = boolean,
+    default = true,
+    page = PhunTaxi,
+    translation = PhunTaxi_AllowBuiltPoints,
+}
+
+option PhunTaxi.BuiltPointLimit
+{
+    type = integer,
+    default = 5,
+    min = 0,
+    max = 99,
+    page = PhunTaxi,
+    translation = PhunTaxi_BuiltPointLimit,
+}
+
+option PhunTaxi.BuiltPhoneDistance
+{
+    type = integer,
+    default = 50,
+    min = 0,
+    max = 10000,
+    page = PhunTaxi,
+    translation = PhunTaxi_BuiltPhoneDistance,
+}
+
+option PhunTaxi.Debug
+{
+    type = boolean,
+    default = false,
+    page = PhunTaxi,
+    translation = PhunTaxi_Debug,
 }

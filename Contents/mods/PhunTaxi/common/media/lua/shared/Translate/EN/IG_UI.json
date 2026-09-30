@@ -6,10 +6,11 @@
   "IGUI_PhunTaxi_BuiltPointsOff": "This server does not let players build pay phones",
   "IGUI_PhunTaxi_BuiltPointLimit": "You already have %1 pay phones standing",
   "IGUI_PhunTaxi_PickerTitle": "Available Destinations",
+  "IGUI_PhunTaxi_MapLoading": "Loading map...",
   "IGUI_PhunTaxi_TaxiOnTheHouse": "Hop on in, this one is on the house",
   "IGUI_PhunTaxi_Undiscovered": "Not yet found",
   "IGUI_PhunTaxi_AlreadyPlaced": "You have already chosen where to wake up",
-  "IGUI_PhunTaxi_WokeUp": "You arrive at at %1",
+  "IGUI_PhunTaxi_WokeUp": "You arrive at %1",
   "IGUI_PhunTaxi_CannotGoThere": "You cannot get there right now",
   "IGUI_PhunTaxi_PhoneAnswered": "You hear heavy breathing.",
   "IGUI_PhunTaxi_PhoneKnown": "You already remember this phone: %1",
@@ -22,7 +23,7 @@
   "IGUI_PhunTaxi_Btn_Spawn": "Go",
   "IGUI_PhunTaxi_Col_Place": "Place",
   "IGUI_PhunTaxi_Col_Known": "Known",
-  "IGUI_PhunTaxi_Elsewhere": "Elsewhere",
+  "IGUI_PhunTaxi_Elsewhere": "Kentucky",
   "IGUI_PhunTaxi_Desc_Loading": "Remembering...",
   "IGUI_PhunTaxi_Desc_Nothing": "You do not know anywhere yet.",
   "IGUI_PhunTaxi_Desc_Pending": "Where to? This ride is on the house, and you only get the one. Keep an eye out for pay phones: every one you use is somewhere a taxi can take you next time.",
@@ -116,7 +117,13 @@
   "IGUI_PhunTaxi_PhoneIsKept": "An admin is keeping that phone",
   "IGUI_PhunTaxi_PhoneTakenDown": "You take the phone down and pack it back into its kit",
   "IGUI_PhunTaxi_ZonePhoneChance": "Pay Phone Chance",
-  "IGUI_PhunTaxi_ZonePhoneChance_tooltip": "PhunTaxi: percent chance, 0 to 100, a vanilla pay phone in this zone becomes a live one. Rolled once per phone, the first time it loads, so a change only reaches phones not rolled yet. Leave unset for the sandbox Pay Phone Chance. 0 turns the swap off here",
+  "IGUI_PhunTaxi_ZonePhoneChance_tooltip": "PhunTaxi: percent chance, 0 to 100, a pay phone the map puts down in this zone becomes a live one. Each phone's roll is fixed for the world, so a change reaches every phone nobody has reached yet. Leave unset for the sandbox Pay Phone Chance. At 0, no map phone goes live here",
   "IGUI_PhunTaxi_ZonePhoneDistance": "Pay Phone Spacing",
-  "IGUI_PhunTaxi_ZonePhoneDistance_tooltip": "PhunTaxi: no pay phone in this zone becomes live within this many squares of another live phone, so lower packs them closer. Leave unset for the sandbox Pay Phone Spacing. 0 for no spacing"
+  "IGUI_PhunTaxi_ZonePhoneDistance_tooltip": "PhunTaxi: no pay phone in this zone becomes live within this many squares of another live phone, so lower packs them closer. Leave unset for the sandbox Pay Phone Spacing. 0 for no spacing",
+
+  "IGUI_PhunTaxi_Options": "PhunTaxi",
+  "IGUI_PhunTaxi_Options_RingVolume": "Pay Phone Ring Volume",
+  "IGUI_PhunTaxi_Options_RingVolume_tooltip": "How loud an undiscovered pay phone rings, for you only. 100 is as shipped, 0 mutes it. Whether phones ring at all is the server's choice",
+  "IGUI_PhunTaxi_Options_DriveOffVolume": "Taxi Drive Off Volume",
+  "IGUI_PhunTaxi_Options_DriveOffVolume_tooltip": "How loud the taxi pulling away is after a ride, for you only. 100 is as shipped, 0 mutes it"
 }

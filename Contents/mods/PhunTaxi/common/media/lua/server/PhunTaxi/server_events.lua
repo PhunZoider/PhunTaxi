@@ -5,6 +5,8 @@ require "PhunTaxi/points"
 require "PhunTaxi/tools"
 require "PhunTaxi/interiors"
 require "PhunTaxi/phone_guards"
+-- Before the spots, so a spot on a map phone's square replaces it.
+require "PhunTaxi/map_phones"
 require "PhunTaxi/defaults"
 require "PhunTaxi/candidates"
 local Core = PhunTaxi

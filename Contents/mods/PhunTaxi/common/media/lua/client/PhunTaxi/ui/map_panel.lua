@@ -68,7 +68,16 @@ function MapPanel:instantiate()
     self:createChildren()
 end
 
---- Load the map data and style. Called once, after instantiate.
+-- Frames the owner draws before the map data is loaded: one to put up the
+-- window and the list with "Loading map" where the map goes, then the load.
+-- The load reads every map in the server's Map= list and stops the game
+-- while it does, so the window is up first rather than after it.
+local LOAD_AFTER_FRAMES = 2
+
+--- Ask for the map data and style, loaded a frame or two later: see
+--- LOAD_AFTER_FRAMES. Called once, after the panel is added to its owner,
+--- which must call loadWhenDrawn from its update and drawLoading from its
+--- render. Hidden until loaded, so an empty UIWorldMap is never drawn.
 --
 -- @param hideUnvisited  true draws only what this character has seen, which
 --                       is what "the player's map" means. The picker passes
@@ -76,6 +85,45 @@ end
 --                       would otherwise be choosing pins on a black square;
 --                       vanilla's own spawn select shows the whole map too.
 function MapPanel:initMap(hideUnvisited)
+    self.hideUnvisited = hideUnvisited == true
+    self.loaded = false
+    self.loadIn = LOAD_AFTER_FRAMES
+    self:setVisible(false)
+end
+
+--- The owner's update: count down, then load and show the map, and go to
+--- the view asked for while it was loading.
+function MapPanel:loadWhenDrawn()
+    if self.loaded ~= false then
+        return
+    end
+    self.loadIn = self.loadIn - 1
+    if self.loadIn > 0 then
+        return
+    end
+    -- First, so loadMap's own setHideUnvisited reaches the map.
+    self.loaded = true
+    self:loadMap(self.hideUnvisited)
+    self:setVisible(true)
+    local view = self.pendingView
+    self.pendingView = nil
+    if view then
+        view()
+    end
+end
+
+--- The owner's render: "Loading map" where the map will be.
+function MapPanel:drawLoading(owner)
+    if self.loaded ~= false then
+        return
+    end
+    owner:drawRect(self.x, self.y, self.width, self.height, 0.9, 0.08, 0.08, 0.08)
+    owner:drawRectBorder(self.x, self.y, self.width, self.height, 0.6, 0.4, 0.4, 0.4)
+    owner:drawTextCentre(getText("IGUI_PhunTaxi_MapLoading"), self.x + self.width / 2,
+        self.y + (self.height - tools.FONT_HGT_MEDIUM) / 2, 0.8, 0.8, 0.8, 1, UIFont.Medium)
+end
+
+function MapPanel:loadMap(hideUnvisited)
     local api = self.mapAPI
     MapUtils.initDefaultMapData(self)
     api:setBoundsFromWorld()
@@ -98,6 +146,9 @@ end
 --- engine keeps the option on this map's renderer and reads it every frame.
 function MapPanel:setHideUnvisited(hide)
     self.hideUnvisited = hide == true
+    if self.loaded == false then
+        return
+    end
     self.mapAPI:setBoolean("HideUnvisited", self.hideUnvisited)
 end
 
@@ -168,6 +219,12 @@ function MapPanel:showBounds(b)
     if not b then
         return
     end
+    if self.loaded == false then
+        self.pendingView = function()
+            self:showBounds(b)
+        end
+        return
+    end
     local cx, cy = (b.x1 + b.x2) / 2, (b.y1 + b.y2) / 2
     local spanX = math.max(FIT_MIN_SPAN, (b.x2 - b.x1) + FIT_PAD * 2)
     local spanY = math.max(FIT_MIN_SPAN, (b.y2 - b.y1) + FIT_PAD * 2)
@@ -177,6 +234,12 @@ end
 --- Glide to one point, zooming in if the view is further out than a city.
 function MapPanel:showPoint(point)
     if not point or not point.x then
+        return
+    end
+    if self.loaded == false then
+        self.pendingView = function()
+            self:showPoint(point)
+        end
         return
     end
     local zoom = self.mapAPI:getZoomF()

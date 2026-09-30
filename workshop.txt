@@ -11,7 +11,7 @@ description=[h2]Features[/h2]
 description=[list]
 description=[*][b]Earned spawn points.[/b] Walk to a place to remember it, and listen out for ringing pay phones. Depending on the server, picking one up (or just walking up to it) logs the location for future spawning and fast travel.
 description=[*][b]Kept across deaths.[/b] What you find belongs to your player, not your character, so every place you find is somewhere your next character can start.
-description=[*][b]Taxi between pay phones.[/b] If the server turns it on, call a taxi from any pay phone you know to any other, for a fare in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] change.
+description=[*][b]Fast travel.[/b] If the server turns it on, call a taxi from any pay phone you know to any other, for a fare in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] change.
 description=[*][b]Build your own pay phones.[/b] Craft a Pay Phone Kit at Electricity 4 and put one up where you want to come back to. Take it down again and you get the kit back.
 description=[*][b]Nobody rides into your safehouse.[/b] No ride ever lands in somebody else's safehouse, so a pay phone inside yours takes only you and your members home.
 description=[*][b]Multiplayer first.[/b] One code path for single player and multiplayer.
@@ -19,7 +19,7 @@ description=[/list]
 description=
 description=[h2]For server owners[/h2]
 description=[list]
-description=[*]Every constraint is a sandbox option: how close counts as found, how many pay phones are live, whether players can build them, the taxi and its fares. Turn off whatever is taking the phun out of it.
+description=[*]Every constraint is a sandbox option: spawning at the garage, fast travel and its fares, how many pay phones are live and how far apart, how close counts as found, the ringing, and whether players can build phones. Turn off whatever is taking the phun out of it.
 description=[*]Set a world up in game: turn the setup menu on in the spawn point editor, then right click to add spawn points and keep pay phones, and use the spawn point editor from the admin panel to see, visit and rename every point.
 description=[*]Your setup survives a wipe. It is saved to PhunTaxi.json in the server's Lua folder, which you can also edit by hand or copy to another server.
 description=[/list]

@@ -37,16 +37,15 @@ Core.phones = {
         W = "phuninteriors_01_18",
         N = "phuninteriors_01_19"
     },
-    -- What an unused phone rings with, and for how long, in milliseconds.
-    -- Ours, in scripts/PhunTaxi_Sounds.txt. It loops, so it is stopped when
-    -- the time is up or the phone is answered, and each phone rings once a
-    -- session. Real time rather than game time on purpose: ten game minutes
+    -- What an unused phone rings with, for PhoneRingSeconds. Ours, in
+    -- scripts/PhunTaxi_Sounds.txt. It loops, so it is stopped when the time
+    -- is up or the phone is answered, and each phone rings once a session.
+    -- Real time rather than game time on purpose: ten game minutes
     -- is 25 seconds on a one hour day and ten minutes on a 24 hour one. Its
     -- distanceMax is 30, so PhoneRingRange (default 30) should stay at or
     -- under that: a ring further off is one nobody hears, and it still uses
     -- up that phone's ring for the session.
     ringSound = "PhunTaxi_PhoneRinging",
-    ringMs = 30000,
     -- Played on the rider once a taxi has put them down, the free ride out of
     -- the spawn room included: the cab pulling away from where they stand.
     driveOffSound = "PhunTaxi_DriveOff",
@@ -58,16 +57,108 @@ Core.phones = {
         W = {-1, 0},
         N = {0, -1}
     },
-    -- Squares a phone MAY go on, for the parts of the map with no vanilla
-    -- phone to swap: phone key -> {x, y, z, facing, chance}. Drawn once per
-    -- world by the server (PhoneSwap.drawCandidates), in a random order, each
-    -- spaced by PhoneDistance against the others and every phone already
-    -- recorded. So a handful close together gives one phone, somewhere
-    -- different each world. See Core.addPhoneCandidate.
+    -- Squares a phone MAY go on: phone key -> {x, y, z, facing, chance,
+    -- replace, room}. The phones the maps put down (Core.addMapPhone, `replace`
+    -- set) and squares with no phone at all (Core.addPhoneCandidate). The
+    -- server ranks them once per world at random (PhoneSwap.resolve) and
+    -- takes each in rank order that is PhoneDistance from every phone taken
+    -- or standing. So a handful close together gives one phone, somewhere
+    -- different each world.
     candidates = {},
     -- Counts every change to `candidates`, so the draw knows when a late one
     -- has turned up without walking the table on every square load.
-    candidatesVersion = 0
+    candidatesVersion = 0,
+    -- What a map phone is called after the room it is in (addMapPhone's
+    -- `room`, which scripts/phones.pl reads out of the lotheader: the phone's
+    -- own room when it says something, or else the biggest telling room of
+    -- its building). A room not here labels the phone by its zone alone, so
+    -- a room that could be anything is left out rather than guessed at.
+    roomWords = {
+        armysurplus = "Army surplus",
+        bakery = "Bakery",
+        bakerykitchen = "Bakery",
+        bank = "Bank",
+        bar = "Bar",
+        barstorage = "Bar",
+        bookstore = "Bookstore",
+        cafe = "Cafe",
+        cafeteria = "Cafeteria",
+        cafeteriakitchen = "Cafeteria",
+        camping = "Camping store",
+        candystore = "Candy store",
+        cardealershipoffice = "Car dealership",
+        carsupply = "Auto parts",
+        church = "Church",
+        classroom = "School",
+        clothesstore = "Clothes store",
+        conveniencestore = "Convenience store",
+        cornerstore = "Corner store",
+        dentist = "Dentist",
+        departmentstore = "Department store",
+        diner = "Diner",
+        dinerkitchen = "Diner",
+        donut_dining = "Donut shop",
+        factorystorage = "Factory",
+        firestation = "Fire station",
+        fossoil = "Fossoil",
+        furniturestore = "Furniture store",
+        gardenstore = "Garden center",
+        gas2go = "Gas 2 Go",
+        gasstore = "Gas station",
+        generalstore = "General store",
+        giftstore = "Gift shop",
+        gigamart = "Gigamart",
+        grocers = "Grocer",
+        grocery = "Grocery",
+        grocerystorage = "Grocery",
+        gunstore = "Gun store",
+        gunstorestorage = "Gun store",
+        gym = "Gym",
+        hospitalhallway = "Hospital",
+        hospitalroom = "Hospital",
+        jewelrystore = "Jeweler",
+        kennels = "Kennels",
+        leatherclothesstore = "Leather store",
+        library = "Library",
+        liquorstore = "Liquor store",
+        loggingfactory = "Lumber mill",
+        mechanic = "Mechanic",
+        medclinic = "Clinic",
+        medical = "Clinic",
+        medicaloffice = "Clinic",
+        medicalstorage = "Clinic",
+        motelreception = "Motel",
+        motelroom = "Motel",
+        motelroomoccupied = "Motel",
+        movierental = "Video store",
+        musicschool = "Music school",
+        musicstore = "Music store",
+        optometrist = "Optometrist",
+        pawnshop = "Pawn shop",
+        pharmacy = "Pharmacy",
+        policehall = "Police station",
+        policeoffice = "Police station",
+        policestorage = "Police station",
+        poststorage = "Post office",
+        prisoncells = "Prison",
+        rangerhall = "Ranger station",
+        recreation = "Rec center",
+        restaurant = "Restaurant",
+        restaurantdining = "Restaurant",
+        restaurantkitchen = "Restaurant",
+        rollerrink = "Roller rink",
+        security = "Security office",
+        sewingstore = "Sewing store",
+        shoestore = "Shoe store",
+        spiffo_dining = "Spiffo's",
+        sportstore = "Sports store",
+        stripclub = "Strip club",
+        theatre = "Theatre",
+        toolstore = "Hardware store",
+        toystore = "Toy store",
+        westerndining = "Restaurant",
+        zippeestore = "Zippee Market"
+    }
 }
 
 local facings = {
@@ -145,9 +236,8 @@ end
 --- as a candidate taken out or added late.
 ---
 --- Safe from any hook that runs before the first square loads, and later too:
---- a candidate that turns up after the draw is drawn when it does. Adding the
---- same square again replaces it, but a square already drawn in this world
---- keeps its result.
+--- a candidate that turns up late takes its place in the pool when it does.
+--- Adding the same square again replaces it and keeps its rank.
 function Core.addPhoneCandidate(x, y, z, facing, chance, mods)
     if type(x) ~= "number" or type(y) ~= "number" or not facings[facing] then
         Core.logLn("addPhoneCandidate needs x, y, z and one of E, S, W, N")
@@ -172,6 +262,47 @@ function Core.addPhoneCandidate(x, y, z, facing, chance, mods)
         z = z,
         facing = facing,
         chance = chance or 100
+    }
+    Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
+    return true
+end
+
+--- Offer a phone a MAP puts down: x, y, z is the vanilla phone's square and
+--- `facing` its facing. The same pool as addPhoneCandidate, with two
+--- differences: it goes up only by replacing a vanilla phone standing there
+--- (a square without one is dropped for the world when it loads, so a map
+--- that moved it, or a map that hides the cell, costs nothing), and its
+--- chance is PhoneChance, or its zone's, rather than a fixed percent.
+---
+--- map_phones.lua offers every phone the lotpacks place, generated by
+--- scripts/phones.pl. `mods` is as for addPhoneCandidate. An addPhoneCandidate
+--- on the same square replaces it, whichever came first.
+---
+--- `room` (optional) is the room name the map gives the building the phone is
+--- in or on, as the lotheader has it ("gasstore"). The phone is labelled with
+--- its word in Core.phones.roomWords; a room with no word there, or none, is
+--- labelled by its zone alone.
+function Core.addMapPhone(x, y, z, facing, mods, room)
+    if type(x) ~= "number" or type(y) ~= "number" or not facings[facing] then
+        Core.logLn("addMapPhone needs x, y, z and one of E, S, W, N")
+        return false
+    end
+    if not Core.tools.anyModActive(mods) then
+        return false
+    end
+    x, y, z = math.floor(x), math.floor(y), math.floor(z or 0)
+    local key = Core.phoneKey(x, y, z)
+    local existing = Core.phones.candidates[key]
+    if existing and not existing.replace then
+        return false
+    end
+    Core.phones.candidates[key] = {
+        x = x,
+        y = y,
+        z = z,
+        facing = facing,
+        replace = true,
+        room = type(room) == "string" and room ~= "" and room or nil
     }
     Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
     return true

@@ -21,17 +21,26 @@ exploring, and a wipe takes it.
 
 ## One free ride, once
 
-A new character is marked as choosing the first time the server sees them,
-and the Go button works for them exactly once. After that the window is a map.
+The Go button works while a character is in the Taxi Garage, and the garage
+has no way out but the taxi, so it works exactly once. After that the window
+is a map.
 A button that took you anywhere you had been, whenever you liked, would be
 fast travel, and finding a place would be worth nothing once you had. The
-paid taxi between pay phones is the fast travel, and the server can turn it
-off.
+paid taxi between pay phones is the fast travel (the **Fast Travel**
+option), and it is off unless the server turns it on.
 
-"New" is decided once and stamped on the character, so a character who
-reconnects is not offered a second free choice, and one who survived for
-weeks before the mod was installed is not handed a free teleport by the
-install.
+On a server, "new" is simply where the character is. Every vanilla spawn
+region is collapsed to one square in the garage's cell, whatever Spawn at
+Garage says, so a new character always lands there; one who reconnects is
+wherever they logged out, and only one still in the garage has a ride to
+take. Nothing is stored for it, so there is nothing to lose. A character
+who respawns in their safehouse through vanilla's own option was never in
+the garage and gets no free ride.
+
+Single player's spawn selector runs before any mod code, so there "new" is
+decided once, by the character's age the first time the game looks, and
+stamped on the character: one who survived for weeks before the mod was
+installed is not handed a free teleport by the install.
 
 ## Arriving
 
@@ -45,17 +54,21 @@ cleared off the square you land on.
 On a server the vanilla spawn regions are collapsed to one square, so the
 vanilla selector has one choice and skips itself.
 
-## Extra pay phones are drawn, not rolled
+## Pay phones are decided for the whole map at once
 
-A vanilla phone is rolled the first time its square loads, so which phone on
-a street goes live depends on which one somebody walked up to first. That is
-fine where there are plenty. The extra spots PhunTaxi ships are for the empty
-parts of the map, where there are few, so they are all drawn at once, in a
-shuffled order, the first time anything loads in a new world: which spot
-fills a gap is chance, not the direction the first player came from. A spot
-a later version adds is drawn when it arrives, and one drawn already is
-never drawn again. A drawn spot counts for the spacing
-straight away, even though its phone only goes up when somebody gets there.
+Every square a live phone could go on is known before anybody gets there:
+the pay phones the maps themselves put down (read out of the map files and
+shipped as a list) and the extra spots PhunTaxi ships for the empty parts
+of the map. Each new world gives every one of them a random rank, once, and
+takes them in rank order, skipping any too close to one already taken. So
+which phone on a street goes live is chance, and not the direction the first
+player came from. A taken phone counts for the spacing straight away, even
+though it only goes up when somebody gets there.
+
+Only a phone nobody has seen yet can move. If one goes missing, or the map
+has no pay phone where the list says (a map update moved it), the next in
+rank nearby takes its place. And since the server knows every square that
+matters, a square that loads with nothing on the list costs it nothing.
 
 ## Nobody rides into your safehouse
 
@@ -74,7 +87,7 @@ reason a server is slow.
 
 ## Hidden means not sent
 
-With Show Undiscovered Points off, the server does not send the places a
+With Show Undiscovered Places off, the server does not send the places a
 player has not found. A client that was sent the coordinates could draw them
 whatever the option said, so an option enforced only in the window would not
 be enforced at all.

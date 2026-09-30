@@ -378,7 +378,9 @@ local function sorted(registry)
     for _, point in pairs(registry) do
         table.insert(out, point)
     end
-    table.sort(out, Core.pointBefore)
+    -- Not table.sort: every pay phone is a point, and Kahlua's recursive
+    -- quicksort overflows on a list that long (see tools.sort).
+    Core.tools.sort(out, Core.pointBefore)
     return out
 end
 

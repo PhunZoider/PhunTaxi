@@ -13,13 +13,14 @@ Part of the Phun mod family. Requires PhunInteriors.
 ## Features
 
 - **Earned spawn points.** Walk near a place to remember it. Pick up a live
-  pay phone to remember it. Live phones you have not found ring as you pass.
+  pay phone to remember it. Live phones you have not found ring as you
+  pass, at a volume each player sets.
 - **Kept across deaths.** Unlocks belong to the player, not the character, so
   every place you find is somewhere your next character can start.
 - **One free ride.** A new character leaves the Taxi Garage by taxi to any
   place their player knows. After that, the map is a map.
-- **Taxi between pay phones** (optional). Fast travel between phones you
-  know, for a fare in PhunMart change.
+- **Fast travel** (optional). A taxi between pay phones you know, for a fare
+  in PhunMart change.
 - **Build your own pay phones.** Craft a kit at Electricity 4 and put one up
   where you want to come back to.
 - **Nobody rides into your safehouse.** Checked before anybody moves.

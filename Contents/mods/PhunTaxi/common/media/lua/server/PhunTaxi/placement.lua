@@ -7,16 +7,26 @@ local Core = PhunTaxi
 local Placement = {}
 
 -- ---------------------------------------------------------------------------
--- Whether a character may still choose where to wake up.
+-- Whether a character may still take the free ride.
 --
 -- The picker is a map of every place this character knows, and a button on
 -- it that put you at any of them whenever you liked would be fast travel,
 -- which makes discovering a place worth nothing once you have. So the button
 -- works once, for a NEW character, and after that the picker is a map.
 --
--- The state lives in the character's modData under consts.spawnedKey, for the
--- reason the unlocks do: it has to survive a rejoin, or a character could
--- reconnect for a second free choice.
+-- On a server that is WHERE THEY ARE, and nothing is stored. Every vanilla
+-- spawn region collapses to a square in the Taxi Garage's cell (arrival.lua),
+-- the garage has no way out but the taxi, and the taxi is the ride. So a
+-- character standing in the cell is new, or rejoined still in the garage, and
+-- one standing anywhere else has had their ride. Dying puts the next one back
+-- on the landing square. A flag in player modData did this before and was
+-- lost: a server side write to player modData does not persist on a server,
+-- and the client's copy is the one saved.
+--
+-- Single player keeps the flag, because its selector runs in the main menu
+-- before any of this loads and is never collapsed, so a new character starts
+-- in a vanilla town; and there modData is saved where it is written. Under
+-- consts.spawnedKey:
 --
 --   nil        not looked at yet
 --   "pending"  a new character who has not chosen
@@ -26,7 +36,8 @@ local Placement = {}
 -- "New" is decided ONCE, the first time the server looks, and stamped. A
 -- character who takes an hour over the choice is still choosing, and one who
 -- has survived for weeks before the mod was installed is not handed a free
--- teleport by the install.
+-- teleport by the install. A character in the garage is pending in single
+-- player too, whatever the flag says.
 -- ---------------------------------------------------------------------------
 
 -- A character younger than this, in in game hours, when first seen is new.
@@ -34,6 +45,14 @@ local Placement = {}
 -- lands a few ticks after the character exists, not at the moment of creation.
 local NEW_CHARACTER_HOURS = 1
 
+--- Is the player standing in the Taxi Garage's cell?
+function Placement.inGarage(player)
+    local g = Core.consts.garage
+    local x, y = player:getX(), player:getY()
+    return x >= g.x1 and x < g.x2 + 1 and y >= g.y1 and y < g.y2 + 1
+end
+
+--- Single player's flag: see the top of the file.
 function Placement.state(player)
     local md = player:getModData()
     local value = md[Core.consts.spawnedKey]
@@ -49,7 +68,10 @@ function Placement.state(player)
 end
 
 function Placement.isPending(player)
-    return Placement.state(player) == "pending"
+    if Placement.inGarage(player) then
+        return true
+    end
+    return Core.isLocal and Placement.state(player) == "pending"
 end
 
 --- May this character use the spawn button right now?
@@ -68,11 +90,12 @@ function Placement.canSpawn(player)
     return Core.tools.isAdmin(player)
 end
 
---- Record that the character has been placed. Only a pending character's
---- state moves: an admin porting about is not being placed, and stamping them
---- would overwrite when they actually were.
+--- Record that the character has been placed. Single player only: on a
+--- server the ride out of the garage is the record. Only a pending
+--- character's flag moves: an admin porting about is not being placed, and
+--- stamping them would overwrite when they actually were.
 function Placement.markSpawned(player)
-    if Placement.isPending(player) then
+    if Core.isLocal and Placement.state(player) == "pending" then
         player:getModData()[Core.consts.spawnedKey] = Core.now()
         return true
     end

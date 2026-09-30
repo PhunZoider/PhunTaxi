@@ -186,4 +186,53 @@ function tools.isAdmin(player)
     return (isAdmin and isAdmin()) or (isDebugEnabled and isDebugEnabled()) or false
 end
 
+--- Sort a list in place, `less(a, b)` or `<` when it is nil. For a list that
+--- can run to thousands, where Kahlua's table.sort cannot be used: its
+--- quicksort recurses, and a thousand pool keys overflowed the stack on a
+--- server ("Stack overflow" in partition_nocomp). A bottom-up merge sort, so
+--- nothing recurses, and stable.
+function tools.sort(list, less)
+    less = less or function(a, b)
+        return a < b
+    end
+    local n = #list
+    local from, to = list, {}
+    local width = 1
+    while width < n do
+        local i = 1
+        while i <= n do
+            local mid = math.min(i + width, n + 1)
+            local hi = math.min(i + width * 2, n + 1)
+            local a, b, k = i, mid, i
+            while a < mid and b < hi do
+                if less(from[b], from[a]) then
+                    to[k] = from[b]
+                    b = b + 1
+                else
+                    to[k] = from[a]
+                    a = a + 1
+                end
+                k = k + 1
+            end
+            while a < mid do
+                to[k] = from[a]
+                a, k = a + 1, k + 1
+            end
+            while b < hi do
+                to[k] = from[b]
+                b, k = b + 1, k + 1
+            end
+            i = hi
+        end
+        from, to = to, from
+        width = width * 2
+    end
+    if from ~= list then
+        for k = 1, n do
+            list[k] = from[k]
+        end
+    end
+    return list
+end
+
 return tools

@@ -326,6 +326,8 @@ sends = {}
 Core.registerPoint("a.home", {label = "Home", x = 5000, y = 5000, discovery = Core.discovery.start})
 claimAround(4990, 4990, 5010, 5010)
 local newbie = stubs.player("newbie", 0)
+-- A server: new is standing in the garage.
+newbie.moveTo(Core.consts.garage.x1 + 10, Core.consts.garage.y1 + 10, 0)
 Commands[Core.commands.spawn](newbie, {id = "a.home"})
 check("a first ride into a safehouse is refused", #sends, 0)
 check("saying why", sent[#sent].args.text, "IGUI_PhunTaxi_TaxiSafehouse")

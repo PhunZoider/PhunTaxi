@@ -1,55 +1,54 @@
 {
     "Sandbox_PhunTaxi": "PhunTaxi",
 
-    "Sandbox_PhunTaxi_Debug": "Debug",
-    "Sandbox_PhunTaxi_Debug_tooltip": "Verbose logging for point registration, discovery and spawning",
+    "Sandbox_PhunTaxi_UseSpawnRoom": "Spawn at Garage",
+    "Sandbox_PhunTaxi_UseSpawnRoom_tooltip": "If yes, a new character wakes up in the Taxi Garage, a room off the map, and leaves by one free taxi ride to any place their player knows. If no, or when the garage is full, they are put straight at the last place their player chose, or a start point they know",
 
-    "Sandbox_PhunTaxi_UseSpawnRoom": "Wake Up Indoors",
-    "Sandbox_PhunTaxi_UseSpawnRoom_tooltip": "If yes, a new character wakes up in the Taxi Garage, an off grid room, and takes one free taxi ride to a place they know. If no, or when there is no room free, they are placed straight at the last place their player chose, or a start point they know",
+    "Sandbox_PhunTaxi_TaxiFastTravel": "Fast Travel",
+    "Sandbox_PhunTaxi_TaxiFastTravel_tooltip": "If yes, a player can call a taxi from any pay phone they know to any other they know, for a fare. The free ride out of the Taxi Garage does not need this and is never charged",
+
+    "Sandbox_PhunTaxi_PhoneChance": "Pay Phone Chance",
+    "Sandbox_PhunTaxi_PhoneChance_tooltip": "Percent chance a pay phone the map puts down becomes a live one: a spawn point and a taxi stop. Each phone's roll is fixed for the world, so a change reaches every phone nobody has reached yet. The extra spots PhunTaxi ships for empty parts of the map are not rolled on this. At 0, no map phone goes live",
+
+    "Sandbox_PhunTaxi_PhoneDistance": "Pay Phone Spacing",
+    "Sandbox_PhunTaxi_PhoneDistance_tooltip": "No pay phone goes live within this many squares of another live one, which decides which map phones and extra spots are used. Phones already standing stay when this changes. Set to 0 for no spacing",
+
+    "Sandbox_PhunTaxi_PhoneDiscoverRadius": "Pay Phone Discovery Range",
+    "Sandbox_PhunTaxi_PhoneDiscoverRadius_tooltip": "How close, in squares, you have to get to a live pay phone to remember it, and it rings once to say so. Set to 0 and you have to pick the phone up",
 
     "Sandbox_PhunTaxi_DiscoveryRadius": "Place Discovery Range",
-    "Sandbox_PhunTaxi_DiscoveryRadius_tooltip": "How close you have to get to a spawn point that is a place rather than a pay phone before you remember it. There is nothing at a place to pick up, so this cannot be 0. Pay phones have their own range",
+    "Sandbox_PhunTaxi_DiscoveryRadius_tooltip": "How close, in squares, you have to get to a spawn point that is a place rather than a pay phone before you remember it. Checked once a game minute, so running past may not count. There is nothing at a place to pick up, so this cannot be 0",
 
-    "Sandbox_PhunTaxi_ShowUndiscovered": "Show Undiscovered Points",
-    "Sandbox_PhunTaxi_ShowUndiscovered_tooltip": "If yes, places you have not found are listed greyed out, so the list is somewhere to head for. If no, they are not sent to your client at all",
+    "Sandbox_PhunTaxi_ShowUndiscovered": "Show Undiscovered Places",
+    "Sandbox_PhunTaxi_ShowUndiscovered_tooltip": "If yes, places you have not found are listed greyed out, so the list is somewhere to head for. If no, they are not sent to your client at all. Pay phones are never listed until found",
+
+    "Sandbox_PhunTaxi_PhoneRing": "Undiscovered Pay Phones Ring",
+    "Sandbox_PhunTaxi_PhoneRing_tooltip": "If yes, a live pay phone you have not found yet rings when you come near it, once per phone each time you play. Picking it up stops it. Each player sets the volume for themselves in Options, Mods",
+
+    "Sandbox_PhunTaxi_PhoneRingRange": "Pay Phone Ring Range",
+    "Sandbox_PhunTaxi_PhoneRingRange_tooltip": "How close, in squares, you have to be for an undiscovered pay phone to ring for you. The ring carries about 30 squares, so a phone rung from further away may not be heard",
+
+    "Sandbox_PhunTaxi_PhoneRingSeconds": "Pay Phone Ring Time",
+    "Sandbox_PhunTaxi_PhoneRingSeconds_tooltip": "How long, in real seconds, an undiscovered pay phone rings before it gives up",
+
+    "Sandbox_PhunTaxi_TaxiCentsPerSquare": "Fast Travel Fare Per Square",
+    "Sandbox_PhunTaxi_TaxiCentsPerSquare_tooltip": "Cents of PhunMart change per square travelled, in a straight line. Needs PhunMart unless this and the minimum fare are both 0",
+
+    "Sandbox_PhunTaxi_TaxiMinimumFare": "Fast Travel Minimum Fare",
+    "Sandbox_PhunTaxi_TaxiMinimumFare_tooltip": "The least any fast travel ride costs, in cents. 100 is $1.00",
+
+    "Sandbox_PhunTaxi_TaxiZombieRadius": "No Fast Travel Near Zombies",
+    "Sandbox_PhunTaxi_TaxiZombieRadius_tooltip": "A taxi will not come to a pay phone while a zombie is within this many squares of you. Set to 0 to turn this off",
 
     "Sandbox_PhunTaxi_AllowBuiltPoints": "Allow Player Pay Phones",
-    "Sandbox_PhunTaxi_AllowBuiltPoints_tooltip": "If yes, a player may build a pay phone from a crafted kit, for anybody to find and use",
+    "Sandbox_PhunTaxi_AllowBuiltPoints_tooltip": "If yes, a player may craft a Pay Phone Kit and put up a pay phone of their own, for anybody to find and use",
 
     "Sandbox_PhunTaxi_BuiltPointLimit": "Player Pay Phone Limit",
     "Sandbox_PhunTaxi_BuiltPointLimit_tooltip": "How many pay phones one player may have standing at once. Set to 0 for no limit",
 
-    "Sandbox_PhunTaxi_RespawnPenalty": "Respawn Costs Something",
-    "Sandbox_PhunTaxi_RespawnPenalty_tooltip": "Not used yet. Reserved for a cost on choosing where to wake up, and has no effect in this version",
-
-    "Sandbox_PhunTaxi_PhoneChance": "Pay Phone Chance",
-    "Sandbox_PhunTaxi_PhoneChance_tooltip": "Percent chance a vanilla pay phone is replaced by one that is a spawn point, rolled once per phone the first time it loads. Set to 0 to turn the swap off",
-
-    "Sandbox_PhunTaxi_PhoneDistance": "Pay Phone Spacing",
-    "Sandbox_PhunTaxi_PhoneDistance_tooltip": "No pay phone is replaced within this many squares of one that already has been. Set to 0 for no spacing",
-
-    "Sandbox_PhunTaxi_PhoneRing": "Undiscovered Pay Phones Ring",
-    "Sandbox_PhunTaxi_PhoneRing_tooltip": "If yes, a pay phone you have not discovered yet rings now and then while you are near it, so it is easier to notice",
-
-    "Sandbox_PhunTaxi_PhoneRingRange": "Pay Phone Ring Range",
-    "Sandbox_PhunTaxi_PhoneRingRange_tooltip": "How close, in squares, you have to be for an undiscovered pay phone to ring for you",
-
     "Sandbox_PhunTaxi_BuiltPhoneDistance": "Built Pay Phone Spacing",
-    "Sandbox_PhunTaxi_BuiltPhoneDistance_tooltip": "A player cannot build a pay phone within this many squares of any other. Set to 0 for no spacing",
+    "Sandbox_PhunTaxi_BuiltPhoneDistance_tooltip": "A player cannot put up a pay phone within this many squares of any other live one. Set to 0 for no spacing",
 
-
-    "Sandbox_PhunTaxi_PhoneDiscoverRadius": "Pay Phone Discovery Range",
-    "Sandbox_PhunTaxi_PhoneDiscoverRadius_tooltip": "How close, in squares, you have to get to a pay phone to remember it, and it rings once to say so. Set to 0 and you have to pick the phone up",
-
-    "Sandbox_PhunTaxi_TaxiFastTravel": "Taxi Between Pay Phones",
-    "Sandbox_PhunTaxi_TaxiFastTravel_tooltip": "If yes, a player can call a taxi from any pay phone they know to any other, for a fare. The first ride, out of the spawn room, is always free",
-
-    "Sandbox_PhunTaxi_TaxiCentsPerSquare": "Taxi Fare Per Square",
-    "Sandbox_PhunTaxi_TaxiCentsPerSquare_tooltip": "Cents of PhunMart change per square travelled. Needs PhunMart unless this and the minimum fare are both 0",
-
-    "Sandbox_PhunTaxi_TaxiMinimumFare": "Taxi Minimum Fare",
-    "Sandbox_PhunTaxi_TaxiMinimumFare_tooltip": "The least any taxi ride costs, in cents",
-
-    "Sandbox_PhunTaxi_TaxiZombieRadius": "No Taxi Near Zombies",
-    "Sandbox_PhunTaxi_TaxiZombieRadius_tooltip": "A taxi will not come while a zombie is within this many squares. Set to 0 to turn this off"
+    "Sandbox_PhunTaxi_Debug": "Debug",
+    "Sandbox_PhunTaxi_Debug_tooltip": "Verbose logging of point registration, discovery and spawning to the console"
 }

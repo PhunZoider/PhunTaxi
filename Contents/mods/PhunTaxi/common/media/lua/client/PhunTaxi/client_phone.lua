@@ -223,29 +223,73 @@ end
 -- ---------------------------------------------------------------------------
 -- The ring. Decided and played here.
 --
--- The client knows nearly all it needs. Every phone standing when its square
--- loads comes through LoadGridsquare. One the server puts up on an empty
--- square (a candidate, a point's, a kept or built one) arrives after that
--- load, so the server says so (Core.commands.phoneUp, Client.notePhone). And every phone this player has used is in their points
--- payload with the key of its square (Core.phoneKey) as `phone`. So a phone of
--- ours whose square is not in the payload is one they do not know, and it
--- rings.
+-- The client knows where a phone of ours can stand without being told much.
+-- The pool is shared code (Core.phones.candidates: the map phones and the
+-- spots), and the server sends the rest: the squares of phones standing that
+-- the pool does not name (kept, built, a point's), in the points payload,
+-- and every phone it puts up after the client loaded the square
+-- (Core.commands.phoneUp, Client.notePhone). A square none of those names is
+-- never looked at, which is nearly every square that loads. And every phone
+-- this player has used is in their points payload with the key of its square
+-- (Core.phoneKey) as `phone`. So a phone of ours whose square is not in the
+-- payload is one they do not know, and it rings.
 --
--- Vanilla phones are noted as well as ours. The server swaps a phone the
--- first time anybody loads its square, which is usually as somebody walks up,
--- and a client can load the square before the swapped phone reaches it. So
--- what stands on a square is asked again at ring time, not trusted from load.
+-- A named square is noted whether ours or a vanilla phone stands there: the
+-- server puts ours up when the square loads, and a client can load it before
+-- the new phone reaches it. So what stands on a square is asked again at
+-- ring time, not trusted from load.
 --
--- A phone somebody put down from an item rings too. The server records it
--- the first time it is used or its square loads, so picking it up works.
+-- A phone somebody put down from an item on a square nothing names does not
+-- ring until the server has recorded it (on its first use) and a later
+-- payload names it.
 -- ---------------------------------------------------------------------------
 
 -- key -> {x, y, z}: squares seen holding a phone, ours or vanilla. Pruned at
 -- ring time, when a square turns out to be unloaded or phoneless.
 local spots = {}
 
+-- x -> y -> true: the pool's squares, rebuilt when the pool changes, and the
+-- squares the server has named besides.
+local poolIndex, poolVersion = {}, nil
+local extra = {}
+
+local function indexInto(into, x, y)
+    into[x] = into[x] or {}
+    into[x][y] = true
+end
+
+local function named(x, y)
+    if poolVersion ~= Core.phones.candidatesVersion then
+        poolIndex = {}
+        for _, c in pairs(Core.phones.candidates) do
+            indexInto(poolIndex, c.x, c.y)
+        end
+        poolVersion = Core.phones.candidatesVersion
+    end
+    local column = poolIndex[x]
+    if column and column[y] then
+        return true
+    end
+    column = extra[x]
+    return column ~= nil and column[y] == true
+end
+
+--- The squares, as phone keys, of phones standing that the pool does not
+--- name. From the points payload.
+function Client.notePhoneKeys(keys)
+    if type(keys) ~= "table" then
+        return
+    end
+    for _, key in ipairs(keys) do
+        local x, y = tostring(key):match("^(-?%d+)_(-?%d+)_")
+        if x then
+            indexInto(extra, tonumber(x), tonumber(y))
+        end
+    end
+end
+
 local function noteSquare(square)
-    if not Core.settings.PhoneRing or not square then
+    if not Core.settings.PhoneRing or not square or not named(square:getX(), square:getY()) then
         return
     end
     local objects = square:getObjects()
@@ -267,7 +311,13 @@ end
 --- A phone the server has just put up on a square this client has already
 --- loaded, so LoadGridsquare will not show it (Core.commands.phoneUp).
 function Client.notePhone(x, y, z)
-    if not Core.settings.PhoneRing or type(x) ~= "number" or type(y) ~= "number" then
+    if type(x) ~= "number" or type(y) ~= "number" then
+        return
+    end
+    -- Named even with the ring off, so turning it on mid session still
+    -- finds this square when it next loads.
+    indexInto(extra, x, y)
+    if not Core.settings.PhoneRing then
         return
     end
     z = z or 0
@@ -342,17 +392,24 @@ function Client.stopRing()
     Events.OnTick.Remove(tickRing)
 end
 
---- Ring the phone on a square, from the square itself, for `ms` or ringMs.
+--- Ring the phone on a square, from the square itself, for `ms` or
+--- PhoneRingSeconds, at the player's own ring volume (Options, Mods).
 function Client.ringPhone(x, y, z, ms)
     Client.stopRing()
+    local volume = Client.volume("RingVolume")
+    if volume <= 0 then
+        return
+    end
     local emitter = getWorld():getFreeEmitter(x + 0.5, y + 0.5, z or 0)
     if not emitter then
         return
     end
+    local sound = emitter:playSound(Core.phones.ringSound)
+    emitter:setVolume(sound, volume)
     ringing = {
         emitter = emitter,
-        sound = emitter:playSound(Core.phones.ringSound),
-        stopAt = getTimestampMs() + (ms or Core.phones.ringMs or 4000)
+        sound = sound,
+        stopAt = getTimestampMs() + (ms or (Core.settings.PhoneRingSeconds or 30) * 1000)
     }
     Events.OnTick.Add(tickRing)
 end

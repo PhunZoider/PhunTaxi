@@ -30,6 +30,23 @@ Client.canSpawn = false
 -- is clutter on every right click, wanted only while setting a world up.
 Client.setupMenu = false
 
+-- Each player's own volume for our two sounds, in Options, Mods, as
+-- PhunSprinters does it. 100 is as shipped and 0 mutes it for them only.
+local options = PZAPI and PZAPI.ModOptions and PZAPI.ModOptions:create(Core.name, getText("IGUI_PhunTaxi_Options"))
+if options then
+    options:addSlider("RingVolume", getText("IGUI_PhunTaxi_Options_RingVolume"), 0, 200, 5, 100,
+        getText("IGUI_PhunTaxi_Options_RingVolume_tooltip"))
+    options:addSlider("DriveOffVolume", getText("IGUI_PhunTaxi_Options_DriveOffVolume"), 0, 200, 5, 100,
+        getText("IGUI_PhunTaxi_Options_DriveOffVolume_tooltip"))
+end
+
+--- The player's multiplier for one of the sliders above, 1 being as shipped.
+function Client.volume(id)
+    local option = options and options:getOption(id)
+    local value = option and option:getValue()
+    return (tonumber(value) or 100) * .01
+end
+
 --- A fresh picture of what this character knows.
 --
 -- Stored in one place and announced, rather than handed to whoever asked. Any
@@ -42,6 +59,9 @@ function Client.receivePoints(arguments)
     end
     Client.pending = arguments and arguments.pending == true
     Client.canSpawn = arguments and arguments.canSpawn == true
+    if arguments and Client.notePhoneKeys then
+        Client.notePhoneKeys(arguments.phones)
+    end
 
     -- A new character is pointed at the taxi rather than handed the picker:
     -- the ride is something they walk up to. See client_taxi.lua.
@@ -62,8 +82,12 @@ function Client.notify(arguments)
         player:setHaloNote(text, 255, 255, 255, 300)
         -- On the player's own emitter, which moves with them, so it is heard
         -- where they land whether or not the move has reached this client yet.
-        if arguments.sound then
-            player:playSound(arguments.sound)
+        -- The drive off is the only sound a message carries, so it takes
+        -- that slider.
+        local volume = arguments.sound and Client.volume("DriveOffVolume") or 0
+        if volume > 0 then
+            local sound = player:playSound(arguments.sound)
+            player:getEmitter():setVolume(sound, volume)
         end
     else
         Core.logLn(text)

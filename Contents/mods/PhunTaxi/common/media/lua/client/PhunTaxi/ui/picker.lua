@@ -389,6 +389,17 @@ function Picker:createChildren()
     self:addChild(self.list)
 end
 
+--- The map loads a frame or two after the window is up (MapPanel:initMap).
+function Picker:update()
+    ISCollapsableWindow.update(self)
+    self.map:loadWhenDrawn()
+end
+
+function Picker:render()
+    ISCollapsableWindow.render(self)
+    self.map:drawLoading(self)
+end
+
 --- The rows this window shows. The whole payload, or in a taxi only the
 --- phones this character knows, less the one they are calling from.
 function Picker:rows()

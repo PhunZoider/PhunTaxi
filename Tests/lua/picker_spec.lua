@@ -31,10 +31,11 @@ local function reset()
     Core.data = {}
     Core.saved = {points = {}, phones = {}, labels = {}, deleted = {}, released = {}}
     Core.indexesBuilt = false
-    -- The picker's own flow, with nobody put in an arrival room first:
-    -- playerSetup would otherwise place a new character at a fallback point
-    -- before the button is ever pressed. arrival_spec.lua covers that.
-    Core.settings.UseSpawnRoom = false
+    -- The picker's own flow: a new character is put in the arrival room
+    -- (stubbed below, so nobody moves) and chooses from there. Off, or with
+    -- no room, playerSetup would place them at a fallback point before the
+    -- button is ever pressed. arrival_spec.lua covers that.
+    Core.settings.UseSpawnRoom = true
 end
 
 -- Every response the server sends, in order, instead of a client.
@@ -59,6 +60,9 @@ end
 local sends = {}
 local refuseSends = false
 PhunInteriors = {
+    enterRoom = function()
+        return true, "phun.spawn.arrival#0"
+    end,
     sendTo = function(player, destination, reason, release)
         if refuseSends then
             return false, "refused for the test"
@@ -116,6 +120,8 @@ local dawdler = stubs.player("dawdler", 0)
 Placement.state(dawdler)
 local lateDawdler = {
     getModData = dawdler.getModData,
+    getX = dawdler.getX,
+    getY = dawdler.getY,
     getHoursSurvived = function()
         return 5
     end
@@ -177,5 +183,25 @@ local vic = stubs.player("vic", 400)
 sent = {}
 Commands[Core.commands.spawn](vic, {id = "s.home"})
 check("an established character cannot spawn", #sends, 1)
+
+-- On a server nothing is stamped: the ride is free while they stand in the
+-- garage and over once it has taken them out, rejoin or not.
+Core.isLocal = false
+local g = Core.consts.garage
+local bea = stubs.player("bea", 0)
+bea.moveTo(g.x1 + 100, g.y1 + 100, 0)
+Commands[Core.commands.playerSetup](bea, {})
+check("a character in the garage may ride", lastSent(Core.commands.points).canSpawn, true)
+Commands[Core.commands.spawn](bea, {id = "s.home"})
+check("and does", #sends, 2)
+check("with nothing written on the character", bea:getModData()[Core.consts.spawnedKey], nil)
+-- The stub does not move anybody; the real sendTo does.
+bea.moveTo(10, 20, 0)
+local beaAgain = stubs.player("bea", 0)
+beaAgain.moveTo(10, 20, 0)
+Commands[Core.commands.spawn](beaAgain, {id = "s.home"})
+check("rejoining outside it, however young, rides no more", #sends, 2)
+check("and is told so", lastSent(Core.commands.notify).text, "IGUI_PhunTaxi_AlreadyPlaced")
+Core.isLocal = true
 
 os.exit(report.finish("picker") > 0 and 1 or 0)

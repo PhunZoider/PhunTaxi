@@ -33,7 +33,9 @@ local function sendPoints(player)
         points = Unlocks.payloadFor(player),
         last = Unlocks.lastChoice(player),
         pending = Placement.isPending(player),
-        canSpawn = Placement.canSpawn(player)
+        canSpawn = Placement.canSpawn(player),
+        -- Phones the pool does not name, for the client's ring.
+        phones = PhoneSwap.standingKeys()
     })
 end
 

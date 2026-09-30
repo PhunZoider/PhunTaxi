@@ -28,8 +28,9 @@ local Arrival = {}
 -- is no "Step outside" to walk out of a free choice with. `returnTo` is still
 -- passed, for PhunInteriors' own rescue of somebody stranded in a slot.
 --
--- When the room will not have them, a pending character is placed at their
--- fallback point instead, which is what UseSpawnRoom's tooltip promises.
+-- When the room will not have them, or UseSpawnRoom is off, a pending
+-- character is placed at their fallback point instead, which is what
+-- UseSpawnRoom's tooltip promises.
 -- ---------------------------------------------------------------------------
 
 -- Where a new character stands for the moment before they are moved: the
@@ -41,9 +42,9 @@ local Arrival = {}
 --
 -- The middle of cell 87,49 (x 22272..22526, y 12544..12798 inside the fence),
 -- in the ground between slot rows 3 and 4 (y 12658..12667 and 12689..12698),
--- so clear of all 64 arrival slots. Set to nil to leave the vanilla selector
--- alone; a new character is then moved from wherever they chose, which works
--- and only looks untidy.
+-- so clear of all 64 arrival slots. REQUIRED on a server: standing in the
+-- garage's cell is what makes a character new there (placement.lua), so a
+-- character vanilla put anywhere else is never offered the ride.
 --
 -- TODO: unchecked in game that the square is open floor.
 Arrival.landing = {
@@ -118,17 +119,14 @@ local function placeAt(player, point)
 end
 
 --- Put a pending character in the arrival room, or at their fallback point
---- if there is no room for them.
+--- if there is no room for them or UseSpawnRoom is off.
 --
 -- Returns "room", "fallback", or nil plus why nothing happened. Nothing is
--- the right answer for an established character, for one already admitted,
--- and with UseSpawnRoom off: they are exactly where they should be.
+-- the right answer for an established character and for one already
+-- admitted: they are exactly where they should be.
 function Arrival.admit(player)
     if not player then
         return nil, "no player"
-    end
-    if not Core.settings.UseSpawnRoom then
-        return nil, "off"
     end
     local key = Core.playerKey(player)
     if admitted[key] == player then
@@ -140,7 +138,9 @@ function Arrival.admit(player)
 
     local fallback = Arrival.fallback(player)
     local why
-    if PhunInteriors and PhunInteriors.enterRoom then
+    if not Core.settings.UseSpawnRoom then
+        why = "off"
+    elseif PhunInteriors and PhunInteriors.enterRoom then
         local ok
         ok, why = PhunInteriors.enterRoom(player, Core.roomIds.arrival, {
             reason = "phuntaxi",
@@ -160,7 +160,9 @@ function Arrival.admit(player)
     else
         why = "PhunInteriors.enterRoom is missing; PhunInteriors is older than this version of PhunTaxi needs"
     end
-    Core.logLn("no arrival room for " .. tostring(key) .. ": " .. tostring(why))
+    if why ~= "off" then
+        Core.logLn("no arrival room for " .. tostring(key) .. ": " .. tostring(why))
+    end
 
     if fallback and placeAt(player, fallback) then
         admitted[key] = player
@@ -186,10 +188,10 @@ end
 -- character is moved from wherever they chose.
 function Arrival.collapseRegions(regions)
     local at = Arrival.landing
-    -- The option read here rather than from Core.settings: the server may
-    -- build its regions before OnInitGlobalModData has filled the cache, and
-    -- an empty cache reads as "off".
-    if not (regions and at and Core.getOption("UseSpawnRoom", true)) then
+    -- Whatever UseSpawnRoom says: with it off a new character is placed at
+    -- their fallback point from here, and the landing square is how the
+    -- server tells them from one who rejoined.
+    if not (regions and at) then
         return false
     end
     for i = #regions, 1, -1 do

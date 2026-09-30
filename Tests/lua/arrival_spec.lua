@@ -89,9 +89,9 @@ check("without asking for a room", #enters, 0)
 
 reset()
 Core.settings.UseSpawnRoom = false
-_, why = Arrival.admit(stubs.player("off", 0))
-check("the option off admits nobody", why, "off")
-check("and asks for nothing", #enters, 0)
+check("the option off places a new character", Arrival.admit(stubs.player("off", 0)), "fallback")
+check("without asking for a room", #enters, 0)
+check("at their fallback point", sends[1] and sends[1].destination.x, 100)
 
 reset()
 local chose = stubs.player("chose", 0)
@@ -147,8 +147,8 @@ check("in place", regions[1].name, "PhunTaxi")
 check("at the landing square", regions[1].points.unemployed[1].posX, 22000)
 
 regions = {{name = "Muldraugh"}, {name = "Riverside"}}
--- Read from the sandbox option itself, not the cache, which may still be
--- empty when the server builds its regions.
+-- Whatever UseSpawnRoom says: the landing square is how a server tells a new
+-- character from one who rejoined.
 local realOptions = getSandboxOptions
 getSandboxOptions = function()
     return {getOptionByName = function(_, name)
@@ -158,8 +158,29 @@ getSandboxOptions = function()
         return nil
     end}
 end
-check("the option off leaves them alone", Arrival.collapseRegions(regions), false)
+check("the option off collapses them too", Arrival.collapseRegions(regions), true)
 getSandboxOptions = realOptions
-check("both still there", #regions, 2)
+check("to one", #regions, 1)
+
+-- ---------------------------------------------------------------------------
+-- On a server, new is where they stand: the garage's cell.
+-- ---------------------------------------------------------------------------
+reset()
+Core.isLocal = false
+local g = Core.consts.garage
+local landed = stubs.player("landed", 400)
+landed.moveTo(g.x1 + 128, g.y1 + 128, 0)
+check("a character on the landing square is put in the room", Arrival.admit(landed), "room")
+local away = stubs.player("away", 0)
+away.moveTo(10000, 10000, 0)
+_, why = Arrival.admit(away)
+check("one anywhere else has had their ride, however young", why, "placed")
+check("and nothing is stamped on a server", away:getModData()[Core.consts.spawnedKey], nil)
+local edge = stubs.player("edge", 0)
+edge.moveTo(g.x2 + 0.5, g.y2 + 0.5, 0)
+check("the last square of the cell is in it", Placement.isPending(edge), true)
+edge.moveTo(g.x2 + 1, g.y2, 0)
+check("the next is not", Placement.isPending(edge), false)
+Core.isLocal = true
 
 os.exit(report.finish("arrival") > 0 and 1 or 0)

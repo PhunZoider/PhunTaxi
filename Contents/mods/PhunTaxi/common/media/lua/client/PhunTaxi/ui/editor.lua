@@ -497,6 +497,17 @@ function Editor:createChildren()
     self:addChild(self.list)
 end
 
+--- The map loads a frame or two after the window is up (MapPanel:initMap).
+function Editor:update()
+    ISCollapsableWindow.update(self)
+    self.map:loadWhenDrawn()
+end
+
+function Editor:render()
+    ISCollapsableWindow.render(self)
+    self.map:drawLoading(self)
+end
+
 --- Pins for every point. The map panel draws only points marked known, which
 --- is the picker's rule; here every point is one an admin may see.
 function Editor:onListRefreshed()

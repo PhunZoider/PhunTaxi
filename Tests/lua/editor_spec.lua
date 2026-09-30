@@ -132,6 +132,8 @@ check("and carries the label to reset to", far and far.shippedLabel, "Far")
 Core.isLocal = false
 local nobody = stubs.player("nobody", 400)
 local boss = stubs.player("boss", 0)
+-- A new character on a server is one standing in the garage.
+boss.moveTo(Core.consts.garage.x1 + 10, Core.consts.garage.y1 + 10, 0)
 boss.getAccessLevel = function()
     return "admin"
 end

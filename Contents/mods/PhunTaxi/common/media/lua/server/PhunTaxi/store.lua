@@ -492,7 +492,8 @@ local function sortedKeys(t)
     for k in pairs(t) do
         table.insert(keys, k)
     end
-    table.sort(keys)
+    -- Not table.sort, which recurses in Kahlua: see tools.sort.
+    Core.tools.sort(keys)
     return keys
 end
 

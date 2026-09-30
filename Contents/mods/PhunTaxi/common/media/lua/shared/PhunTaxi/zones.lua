@@ -50,7 +50,7 @@ if phunZonesActive() then
             -- Cell 87,49, the whole of it. PhunZones' rects are inclusive at
             -- both ends, so this is 22272..22527, not the 256 wide
             -- NoPowerOrWater zone's half open rectangle.
-            points = {{22272, 12544, 22527, 12799}}
+            points = {{Core.consts.garage.x1, Core.consts.garage.y1, Core.consts.garage.x2, Core.consts.garage.y2}}
         }
     end
 

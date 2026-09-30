@@ -38,11 +38,11 @@ is not on every right click while you are just playing:
 - **Add just spawn point here** asks for a name and adds a spawn point on the
   clicked square. It starts as found by exploring; change that in the editor.
 - **Store this payphone**, on any pay phone, keeps it. A vanilla phone is made
-  live on the spot, whatever its roll said.
+  live on the spot, chosen or not.
 
 A pay phone you put down from the Taxi Phone item, or move with the movables
-cheat, becomes a spawn point too, the first time anybody uses it or its square
-loads. Like a player built phone it is not kept: store it if the next world
+cheat, becomes a spawn point too, the first time anybody uses it (or its square
+loads, if the square is one on the pay phone list). Like a player built phone it is not kept: store it if the next world
 should have it.
 
 Nothing checks that a square you add is free to stand on, so pick open floor.
@@ -97,13 +97,20 @@ one. A kept phone that goes missing is put back the same way; release it
 first if you want it gone.
 
 The mod ships a set of named pay phone spots of its own, in towns across the
-map. They are **not** kept: each new world draws them once, in a random
-order, and a spot gets a phone only if it is at least Pay Phone Spacing from
+map. They are **not** kept: each new world ranks them once, at random,
+with the map's own pay phones, and a spot gets a phone only if it is at least Pay Phone Spacing from
 every phone already there, so a town gets one of its spots and a different
 one each world. Rename the phone a spot put up and the file gets an override
 with its new name; Reset name goes back to the shipped name. Keep it and it
 is in your file like any phone you kept, so every world after has that one.
 A spot that needs a map mod is offered only when that mod is active.
+
+A map's own pay phone is named after the building it is in or on, where the
+map says what that is: "Gas station", or "Downtown Gas station" where your
+PhunZones zone has a subtitle. One in the street, in a booth, or in a
+building whose rooms could be anything (a hall, a house, a mall full of
+shops) is just "Pay phone", after the zone's subtitle if it has one. Rename
+any of them in the editor; Reset name goes back to this.
 
 The file is meant to be read and hand edited, and copying it to another
 server copies the setup:
@@ -192,8 +199,8 @@ to that client's console.
 | Renames | yes | `PhunTaxi.json` |
 | Deleted points | yes | `PhunTaxi.json` |
 | Players' unlocks and last choice | no | the world's global ModData |
-| Live pay phones nobody kept | no, they are rolled again | the world's global ModData |
-| Which extra phone spots were drawn | no, they are drawn again | the world's global ModData |
+| Live pay phones nobody kept | no, they are chosen again | the world's global ModData |
+| Which pay phones and spots were chosen | no, they are ranked again | the world's global ModData |
 | Player built pay phones | no | the world's global ModData |
 
 Players' unlocks are one record per **account** (the username), so a player's
@@ -206,16 +213,24 @@ exploring carries over to their next character but not into a new world.
   start. Each has a pay phone behind its arrival square, so a new character
   can call a taxi from wherever the free ride took them. Deleting one leaves
   its phone standing as an ordinary pay phone.
-- **Extra pay phones.** Some parts of the map have no vanilla pay phone to
-  make live, so PhunTaxi ships spots where a phone may go instead. Each world
-  draws them once, in a random order, and a spot is used only if it is at
-  least Pay Phone Spacing from every phone already there. A few spots close
-  together give one phone, a different one each world. A drawn spot counts
-  for the spacing from the start, so vanilla phones near it are not made
-  live, and its phone goes up the first time its square loads. Pay Phone
-  Chance does not apply to spots: set Pay Phone Spacing to 0 for a phone on
-  every one. Store one
-  like any other pay phone to keep it through a wipe.
+- **Which pay phones go live.** PhunTaxi ships a list of every pay phone the
+  maps PhunTaxi was built against put down, read out of the map files
+  (`scripts/phones.pl` in the repo makes it), and, for the parts of the map
+  with none, spots where a phone may go instead. Each world ranks them all
+  once, at random, and takes them in rank order, each only if it is at
+  least Pay Phone Spacing from every phone already taken. A map phone also
+  has to pass Pay Phone Chance, and goes up only over the vanilla phone
+  standing there; if a map update moved it, it is dropped and the next
+  nearby takes its place. A pay phone on a map missing from the list never
+  goes live: keep it from the setup menu. A taken phone counts for the
+  spacing from the start, and goes up the first time its square loads. Pay
+  Phone Chance does not apply to spots: set Pay Phone Spacing to 0 for a
+  phone on every one. Store one like any other pay phone to keep it through
+  a wipe.
+- **The ring and the taxi's drive off** have a volume slider each in every
+  player's **Options, Mods, PhunTaxi**. Whether phones ring at all, how
+  near and for how long are the sandbox options; the sliders only change
+  what one player hears.
 - **Somewhere has to be a start point.** A new player who knows nothing has
   nowhere to ride to. If you replace or delete the shipped ones, make sure
   something else is. The editor will not delete the last one.

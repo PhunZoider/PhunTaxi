@@ -115,7 +115,7 @@ check("zero turns spacing off", PhoneSwap.farEnough(1001, 1000), true)
 -- "town", which sets both; the rest are in a zone that sets neither.
 -- ---------------------------------------------------------------------------
 reset()
-local town = {}
+local town = {title = "Muldraugh"}
 PhunZones = {
     inied = true,
     getLocation = function(x)
@@ -152,41 +152,41 @@ check("in town 150 away is far enough", PhoneSwap.farEnough(4750, 1000), true)
 check("in the woods 150 away is not", PhoneSwap.farEnough(5050, 1000), false)
 check("a built phone's own spacing ignores the zone", PhoneSwap.farEnough(4750, 1000, 500), false)
 
--- The roll: the zone's chance decides, and a zone at zero leaves the phone
--- unstamped, so it still rolls if the zone is changed later.
-local realReplace, realRand = PhoneSwap.replace, ZombRand
-PhoneSwap.replace = function()
-    return true
-end
-local function vanillaAt(x, y)
-    local md = {}
-    return {getX = function() return x end, getY = function() return y end, getZ = function() return 0 end},
-        {getModData = function() return md end}, md
-end
-ZombRand = function()
-    return 60
-end
+-- A map phone's chance is the zone's, or the sandbox's. The last two digits
+-- of a square's rank are its chance roll, so a rank of 60 rolls 60: it wins
+-- at a chance of 70 and loses at 50. Far apart, so spacing stays out of it.
+Core.phones.candidates = {}
+Core.data.phoneRanks = {
+    ["1000_3000_0"] = 60,
+    ["6000_3000_0"] = 160,
+    ["2000_9000_0"] = 260
+}
 town.phoneChance = 70
-local sq, obj, md = vanillaAt(1000, 3000)
-PhoneSwap.roll(sq, obj, "S")
-check("a town phone wins at the zone's 70", PhoneSwap.store()["1000_3000_0"] ~= nil, true)
-sq, obj, md = vanillaAt(6000, 3000)
-PhoneSwap.roll(sq, obj, "S")
-check("a woods phone loses at the sandbox 50", PhoneSwap.store()["6000_3000_0"], nil)
-check("and is stamped", md[Core.consts.phoneRolledKey], true)
+Core.addMapPhone(1000, 3000, 0, "S")
+Core.addMapPhone(6000, 3000, 0, "S")
+PhoneSwap.relocate()
+PhoneSwap.resolve()
+check("a town phone is taken at the zone's 70", PhoneSwap.store()["1000_3000_0"] ~= nil, true)
+check("pending until its square loads", PhoneSwap.store()["1000_3000_0"].pending, true)
+check("and in its zone at once, not Elsewhere", PhoneSwap.store()["1000_3000_0"].region, town.title)
+check("so its point is too", Core.points["phun.spawn.phone.1000_3000_0"].region, town.title)
+check("a woods phone is not, at the sandbox 50", PhoneSwap.store()["6000_3000_0"], nil)
 town.phoneChance = 0
-sq, obj, md = vanillaAt(2000, 3000)
-PhoneSwap.roll(sq, obj, "S")
-check("a zone at zero swaps nothing", PhoneSwap.store()["2000_3000_0"], nil)
-check("and leaves it unstamped", md[Core.consts.phoneRolledKey], nil)
+Core.addMapPhone(2000, 9000, 0, "S")
+PhoneSwap.relocate()
+PhoneSwap.resolve()
+check("a zone at zero takes nothing", PhoneSwap.store()["2000_9000_0"], nil)
+check("and lets go of one it had taken", PhoneSwap.store()["1000_3000_0"], nil)
 -- The sandbox off does not stop a zone that turns it on.
 Core.settings.PhoneChance = 0
 town.phoneChance = 100
-PhoneSwap.roll(sq, obj, "S")
-check("a zone turns the swap on over a sandbox zero", PhoneSwap.store()["2000_3000_0"] ~= nil, true)
+PhoneSwap.relocate()
+PhoneSwap.resolve()
+check("a zone turns the pool on over a sandbox zero", PhoneSwap.store()["2000_9000_0"] ~= nil, true)
+check("and the woods stay off", PhoneSwap.store()["6000_3000_0"], nil)
 
 -- PhunZones installed and not set up yet: never asked, because asking sets
--- it up early, and a phone is left unstamped to roll on a later load.
+-- it up early, and the pool waits for it.
 local asked = false
 PhunZones.inied = false
 PhunZones.getLocation = function()
@@ -194,13 +194,19 @@ PhunZones.getLocation = function()
     return town
 end
 check("not ready is the sandbox chance", PhoneSwap.chanceAt(1000, 0), 0)
-sq, obj, md = vanillaAt(3000, 3000)
-PhoneSwap.roll(sq, obj, "S")
-check("not ready swaps nothing", PhoneSwap.store()["3000_3000_0"], nil)
-check("and leaves it unstamped", md[Core.consts.phoneRolledKey], nil)
+Core.addMapPhone(3000, 9000, 0, "S")
+PhoneSwap.ready = true
+PhoneSwap.loadGridsquare({
+    getX = function() return 1 end,
+    getY = function() return 1 end,
+    getZ = function() return 0 end
+})
+check("not ready takes nothing", PhoneSwap.store()["3000_9000_0"], nil)
 check("and never asks PhunZones", asked, false)
+PhoneSwap.ready = false
 PhunZones.inied = true
-PhoneSwap.replace, ZombRand = realReplace, realRand
+Core.phones.candidates = {}
+Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
 
 -- ---------------------------------------------------------------------------
 -- A swapped phone is a point, in front of the phone, found by using it.
@@ -236,6 +242,22 @@ point = PhoneSwap.add(5000, 5000, 0, "N", "phuninteriors_01_19")
 check("no PhunZones still registers", point ~= nil, true)
 check("with no region", point and point.region, nil)
 check("and a plain label", point and point.label, "Pay phone")
+
+-- A map phone is named after the building phones.pl found it in.
+check("a map phone takes a room", Core.addMapPhone(5100, 5000, 0, "N", nil, "gasstore"), true)
+check("the room is on the candidate", Core.phones.candidates["5100_5000_0"].room, "gasstore")
+check("an empty room is none", Core.addMapPhone(5200, 5000, 0, "N", nil, "") and
+    Core.phones.candidates["5200_5000_0"].room, nil)
+check("it names the phone", PhoneSwap.labelFor({}, "5100_5000_0"), "Gas station")
+check("after the subtitle", PhoneSwap.labelFor({subtitle = "Downtown"}, "5100_5000_0"), "Downtown Gas station")
+Core.addMapPhone(5300, 5000, 0, "N", nil, "lostandfound")
+check("a room with no word is not guessed at", PhoneSwap.labelFor({}, "5300_5000_0"), "Pay phone")
+point = PhoneSwap.add(5100, 5000, 0, "N", "phuninteriors_01_19")
+check("and the point carries it", point and point.label, "Gas station")
+PhoneSwap.forget(5100, 5000, 0)
+for _, key in ipairs({"5100_5000_0", "5200_5000_0", "5300_5000_0"}) do
+    Core.phones.candidates[key] = nil
+end
 
 check("forget removes the record", PhoneSwap.forget(5000, 5000, 0), true)
 check("and the point", Core.points["phun.spawn.phone.5000_5000_0"], nil)
@@ -311,11 +333,21 @@ check("and granted", why, true)
 check("and kept its facing", PhoneSwap.store()["1060_2000_0"].facing, "S")
 check("but not kept", PhoneSwap.store()["1060_2000_0"].kept, nil)
 
+-- Only on a square something names: the pool, or a record. Every other
+-- square is ruled out without a look at what stands on it.
 PhoneSwap.ready = true
 PhoneSwap.loadGridsquare(placed["1090_2000_0"])
-check("a placed phone is recorded on load", Core.points["phun.spawn.phone.1090_2000_0"] ~= nil, true)
+check("a square nothing names is not looked at", PhoneSwap.store()["1090_2000_0"], nil)
+Core.data.phoneRanks = {["1090_2000_0"] = 99}
+Core.addMapPhone(1090, 2000, 0, "W")
+PhoneSwap.loadGridsquare(placed["1090_2000_0"])
+check("one of ours on a pool square is recorded on load", Core.points["phun.spawn.phone.1090_2000_0"] ~= nil,
+    true)
 check("facing west", PhoneSwap.store()["1090_2000_0"].facing, "W")
+check("and standing, not pending", PhoneSwap.store()["1090_2000_0"].pending, nil)
 PhoneSwap.ready = false
+Core.phones.candidates = {}
+Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
 getCell = realGetCell
 bob.moveTo(1000, 2001, 0)
 
@@ -539,27 +571,13 @@ check("nor for the station's", Core.points["phun.spawn.phone.4000_4000_0"], nil)
 PhoneSwap.ready = false
 
 -- ---------------------------------------------------------------------------
--- Candidates: drawn once per world, in a shuffled order, spaced against each
--- other and every recorded phone. A winner reserves its spacing at once and
--- goes up when its square loads.
+-- The pool: every square a phone may go on, ranked once per world and taken
+-- in rank order, each spaced against every phone standing and every one
+-- taken before it. Only a pending phone ever moves.
 --
--- `inOrder` draws in key order and passes only a chance of 100: roll(n) is
--- n - 1, so the shuffle swaps nothing. `reversed` always answers 0, which
--- moves the last key to the front.
+-- Ranks are set by hand here. A rank's last two digits are its chance roll,
+-- and every rank below ends in 00, so each passes any chance.
 -- ---------------------------------------------------------------------------
-local function inOrder(n)
-    return n - 1
-end
-local function reversed()
-    return 0
-end
-local function candidatesOf(list)
-    Core.phones.candidates = {}
-    for _, c in ipairs(list) do
-        Core.addPhoneCandidate(c[1], c[2], c[3], c[4], c[5])
-    end
-end
-
 check("a bad facing is not a candidate", Core.addPhoneCandidate(1, 1, 0, "up"), false)
 check("nor a chance of 0", Core.addPhoneCandidate(1, 1, 0, "S", 0), false)
 check("nor one over 100", Core.addPhoneCandidate(1, 1, 0, "S", 101), false)
@@ -567,64 +585,100 @@ check("nor a square with no x", Core.addPhoneCandidate(nil, 1, 0, "S"), false)
 check("nor mods that are not a list", Core.addPhoneCandidate(1, 1, 0, "S", nil, "somemap"), false)
 check("a candidate for an absent mod is not added", Core.addPhoneCandidate(2, 1, 0, "S", nil, {"somemap"}), false)
 check("so it is not offered", Core.phones.candidates["2_1_0"], nil)
+check("nor is a map phone for one", Core.addMapPhone(4, 1, 0, "S", {"somemap"}), false)
 stubs.mods = {somemap = true}
 check("one for an active mod is", Core.addPhoneCandidate(3, 1, 0, "S", nil, {"absent", "somemap"}), true)
 check("and offered", Core.phones.candidates["3_1_0"] ~= nil, true)
+check("a map phone for one is", Core.addMapPhone(4, 1, 0, "S", {"somemap"}), true)
+check("replacing only", Core.phones.candidates["4_1_0"].replace, true)
+check("at PhoneChance, not a percent of its own", Core.phones.candidates["4_1_0"].chance, nil)
+check("a map phone does not replace a spot", Core.addMapPhone(3, 1, 0, "E"), false)
+check("the spot stays", Core.phones.candidates["3_1_0"].replace, nil)
+check("a spot replaces a map phone", Core.addPhoneCandidate(4, 1, 0, "E"), true)
+check("which is a spot now", Core.phones.candidates["4_1_0"].replace, nil)
 stubs.mods = {}
 
 reset()
-PhunZones = nil
--- A and B are 200 apart, so one gap; C is on its own.
-candidatesOf({{1000, 5000, 0, "S"}, {1200, 5000, 0, "S"}, {3000, 5000, 0, "E"}})
+Core.phones.candidates = {}
+Core.settings.PhoneChance = 100
+local function ranks(list)
+    Core.data.phoneRanks = Core.data.phoneRanks or {}
+    for key, rank in pairs(list) do
+        Core.data.phoneRanks[key] = rank
+    end
+end
+local function takenFrom(order)
+    local i = 0
+    return function()
+        i = i + 1
+        return order[i] or 0
+    end
+end
+-- 1000 and 1200 are 200 apart, so one gap; 3000 is on its own; 6000 is a
+-- map phone.
+Core.addPhoneCandidate(1000, 5000, 0, "S")
+Core.addPhoneCandidate(1200, 5000, 0, "S")
+Core.addPhoneCandidate(3000, 5000, 0, "E")
+Core.addMapPhone(6000, 5000, 0, "S")
 check("a candidate is stored under its square", Core.phones.candidates["1000_5000_0"] ~= nil, true)
 check("with a chance of 100 by default", Core.phones.candidates["1000_5000_0"].chance, 100)
 
 PhoneSwap.start()
-check("start does not draw", PhoneSwap.store()["1000_5000_0"], nil)
-PhoneSwap.drawCandidates(inOrder)
-local drawn = Core.data.candidates
-check("the first of a gap wins", drawn["1000_5000_0"], true)
-check("the next is too close", drawn["1200_5000_0"], false)
-check("one on its own wins", drawn["3000_5000_0"], true)
+check("start takes nothing", PhoneSwap.store()["1000_5000_0"], nil)
+-- New squares are ranked in key order: 1000, 1200, 3000, 6000.
+PhoneSwap.resolve(takenFrom({100, 200, 300, 400}))
+check("each square is ranked once", Core.data.phoneRanks["1200_5000_0"], 200)
 local crec = PhoneSwap.store()["1000_5000_0"]
-check("a winner is recorded at once", crec ~= nil, true)
-check("as a pending candidate", crec and crec.pending, true)
-check("and is a point already", Core.points["phun.spawn.phone.1000_5000_0"] ~= nil, true)
+check("the first of a gap is taken", crec ~= nil, true)
+check("as pending", crec and crec.pending, true)
+check("the next is too close", PhoneSwap.store()["1200_5000_0"], nil)
+check("one on its own is taken", PhoneSwap.store()["3000_5000_0"] ~= nil, true)
+check("and so is a map phone", PhoneSwap.store()["6000_5000_0"] ~= nil, true)
+check("a taken one is a point already", Core.points["phun.spawn.phone.1000_5000_0"] ~= nil, true)
 check("in front of its phone", Core.points["phun.spawn.phone.1000_5000_0"].y, 5001)
 check("found by use, like any phone", Core.points["phun.spawn.phone.1000_5000_0"].discovery, "used")
-check("a loser is not recorded", PhoneSwap.store()["1200_5000_0"], nil)
-check("a winner reserves its spacing", PhoneSwap.farEnough(1300, 5000), false)
+check("a taken one reserves its spacing", PhoneSwap.farEnough(1300, 5000), false)
 check("it is not forgotten before it goes up", PhoneSwap.forget(1000, 5000, 0), false)
+check("nothing changed, nothing runs", PhoneSwap.resolve(takenFrom({0, 0, 0, 0})), false)
+check("and the ranks stay", Core.data.phoneRanks["1000_5000_0"], 100)
 
-PhoneSwap.drawCandidates(reversed)
-check("a second draw changes nothing", Core.data.candidates["1000_5000_0"], true)
+-- A phone standing near a pending one pushes it off the gap.
+PhoneSwap.add(1000, 5100, 0, "S")
+PhoneSwap.resolve()
+check("a pending phone gives way to one standing", PhoneSwap.store()["1000_5000_0"], nil)
+check("with its point", Core.points["phun.spawn.phone.1000_5000_0"], nil)
+check("and the gap has no room for the next", PhoneSwap.store()["1200_5000_0"], nil)
+PhoneSwap.store()["1000_5100_0"] = nil
+PhoneSwap.touch()
+PhoneSwap.resolve()
+check("gone again, the first takes its place back", PhoneSwap.store()["1000_5000_0"] ~= nil, true)
 
--- A new world: the draws went with the ModData, and another order picks
+-- A new world: the ranks went with the ModData, and other ranks take
 -- another phone from the same gap.
 Core.data = {}
 Core.points = {}
 Core.indexesBuilt = false
 PhoneSwap.start()
-PhoneSwap.drawCandidates(reversed)
-check("another world, another winner", Core.data.candidates["1200_5000_0"], true)
-check("and the first loses", Core.data.candidates["1000_5000_0"], false)
-check("one on its own still wins", Core.data.candidates["3000_5000_0"], true)
+PhoneSwap.resolve(takenFrom({900, 100, 300, 400}))
+check("another world, another winner", PhoneSwap.store()["1200_5000_0"] ~= nil, true)
+check("and the first is not", PhoneSwap.store()["1000_5000_0"], nil)
+check("one on its own still is", PhoneSwap.store()["3000_5000_0"] ~= nil, true)
 
--- A late candidate is drawn when it turns up, and its chance is rolled.
+-- A late candidate is ranked when it turns up, and its chance is its rank.
 Core.addPhoneCandidate(8000, 5000, 0, "N", 1)
-PhoneSwap.drawCandidates(inOrder)
-check("a late candidate is drawn", Core.data.candidates["8000_5000_0"], false)
-check("a failed chance puts nothing up", PhoneSwap.store()["8000_5000_0"], nil)
+PhoneSwap.resolve(takenFrom({50}))
+check("a late candidate is ranked", Core.data.phoneRanks["8000_5000_0"], 50)
+check("and a failed chance takes nothing", PhoneSwap.store()["8000_5000_0"], nil)
 
 -- A square already holding a phone of ours is that phone's.
 PhoneSwap.add(9000, 5000, 0, "W")
 Core.addPhoneCandidate(9000, 5000, 0, "S")
-PhoneSwap.drawCandidates(inOrder)
-check("a candidate on a phone loses", Core.data.candidates["9000_5000_0"], false)
-check("and leaves the phone as it was", PhoneSwap.store()["9000_5000_0"].facing, "W")
+PhoneSwap.resolve(takenFrom({0}))
+check("a candidate on a phone leaves it as it was", PhoneSwap.store()["9000_5000_0"].facing, "W")
 check("not pending", PhoneSwap.store()["9000_5000_0"].pending, nil)
 
--- Its square loading puts the phone up, and it is an ordinary phone after.
+-- Squares loading. A spot goes up on nothing; a map phone only over the
+-- vanilla phone it names, and faces the way that one does.
 PhunZones = {
     inied = true,
     getLocation = function()
@@ -638,25 +692,87 @@ PhoneSwap.replace = function(square, old, spriteName)
 end
 PhoneSwap.ready = true
 PhoneSwap.loadGridsquare(emptySquare(1200, 5000, 0))
-check("its square loading puts the phone up", #puts, 1)
+check("a spot's square loading puts the phone up", #puts, 1)
 check("facing the way it was offered", puts[1] and puts[1].sprite, "phuninteriors_01_17")
 check("it is no longer pending", PhoneSwap.store()["1200_5000_0"].pending, nil)
 check("its place is looked up as it goes up", Core.points["phun.spawn.phone.1200_5000_0"].region, "Nowhere")
 PhoneSwap.loadGridsquare(emptySquare(1000, 5000, 0))
-check("a loser's square is left alone", #puts, 1)
+check("a square not taken is left alone", #puts, 1)
+
+PhoneSwap.loadGridsquare(squareWith(6000, 5000, 0, "street_decoration_01_38"))
+check("a map phone goes up over the vanilla one", #puts, 2)
+check("replacing it", puts[2] and puts[2].old ~= nil, true)
+check("facing the way it does", puts[2] and puts[2].sprite, "phuninteriors_01_16")
+check("and is recorded so", PhoneSwap.store()["6000_5000_0"].facing, "E")
+check("its point moved to the front of it", Core.points["phun.spawn.phone.6000_5000_0"].x, 6001)
+
+-- A map phone whose square has none is dropped, and the next in rank near it
+-- takes its place.
+Core.addMapPhone(7000, 9000, 0, "S")
+Core.addMapPhone(7100, 9000, 0, "S")
+ranks({["7000_9000_0"] = 100, ["7100_9000_0"] = 200})
+PhoneSwap.resolve()
+check("the first map phone is taken", PhoneSwap.store()["7000_9000_0"] ~= nil, true)
+check("the second is too near", PhoneSwap.store()["7100_9000_0"], nil)
+PhoneSwap.loadGridsquare(emptySquare(7000, 9000, 0))
+check("nothing to replace puts nothing up", #puts, 2)
+check("and drops it", PhoneSwap.store()["7000_9000_0"], nil)
+check("for the world", Core.data.phoneDropped["7000_9000_0"], true)
+PhoneSwap.loadGridsquare(emptySquare(1, 1, 0))
+check("the next in rank takes its place", PhoneSwap.store()["7100_9000_0"] ~= nil, true)
+PhoneSwap.loadGridsquare(emptySquare(1, 1, 0))
+check("and a dropped square is not taken again", PhoneSwap.store()["7000_9000_0"], nil)
+
+-- One of ours carried off a pool square is forgotten and retired, so the
+-- next in rank takes its place rather than it coming back.
+Core.addPhoneCandidate(1100, 5000, 0, "S")
+ranks({["1100_5000_0"] = 999900})
+PhoneSwap.loadGridsquare(emptySquare(1, 1, 0))
+check("a candidate in a full gap waits", PhoneSwap.store()["1100_5000_0"], nil)
+PhoneSwap.loadGridsquare(emptySquare(1200, 5000, 0))
+check("a standing phone carried off is forgotten", PhoneSwap.store()["1200_5000_0"], nil)
+check("and retired", Core.data.phoneDropped["1200_5000_0"], true)
+PhoneSwap.loadGridsquare(emptySquare(1, 1, 0))
+check("the gap's next in rank takes its place", PhoneSwap.store()["1000_5000_0"] ~= nil, true)
+check("not the one ranked after it", PhoneSwap.store()["1100_5000_0"], nil)
+check("and not the one carried off", PhoneSwap.store()["1200_5000_0"], nil)
+
+-- Taken while its square is loaded, it goes up at once rather than waiting
+-- for the square to load again.
+local loaded = {["2000_7000_0"] = emptySquare(2000, 7000, 0)}
+local cellBefore = getCell
+getCell = function()
+    return {getGridSquare = function(_, x, y, z) return loaded[x .. "_" .. y .. "_" .. z] end}
+end
+Core.addPhoneCandidate(2000, 7000, 0, "W")
+ranks({["2000_7000_0"] = 100})
+PhoneSwap.loadGridsquare(emptySquare(1, 1, 0))
+check("a square already loaded gets its phone at once", PhoneSwap.store()["2000_7000_0"].pending, nil)
+getCell = cellBefore
 PhoneSwap.replace = realReplace
 
--- A candidate taken out of the code: pending, it is dropped; standing, it
--- stays, as any phone does.
+-- A pending one taken out of the code is let go; a standing one stays, as
+-- any phone does.
 Core.phones.candidates["3000_5000_0"] = nil
-Core.phones.candidates["1200_5000_0"] = nil
+Core.phones.candidates["6000_5000_0"] = nil
 Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
-PhoneSwap.drawCandidates(inOrder)
-check("a pending one taken out is dropped", PhoneSwap.store()["3000_5000_0"], nil)
+PhoneSwap.resolve()
+check("a pending one taken out is let go", PhoneSwap.store()["3000_5000_0"], nil)
 check("with its point", Core.points["phun.spawn.phone.3000_5000_0"], nil)
-check("and its draw", Core.data.candidates["3000_5000_0"], nil)
-check("a standing one taken out stays", PhoneSwap.store()["1200_5000_0"] ~= nil, true)
-check("and could be forgotten now", PhoneSwap.forget(1200, 5000, 0), true)
+check("a standing one taken out stays", PhoneSwap.store()["6000_5000_0"] ~= nil, true)
+check("and could be forgotten now", PhoneSwap.forget(6000, 5000, 0), true)
+
+-- The client is told of the phones standing that the pool does not name.
+local function sentKeys()
+    local out = {}
+    for _, key in ipairs(PhoneSwap.standingKeys()) do
+        out[key] = true
+    end
+    return out
+end
+check("a phone on a pool square is not sent", sentKeys()["1000_5000_0"], nil)
+PhoneSwap.add(9500, 5000, 0, "W")
+check("one standing off the pool is", sentKeys()["9500_5000_0"], true)
 PhoneSwap.ready = false
 Core.phones.candidates = {}
 Core.phones.candidatesVersion = Core.phones.candidatesVersion + 1
@@ -810,7 +926,75 @@ end
 check("and keeps no phone", keeps, 0)
 check("a winner is named", Store.shippedLabel(Core.phonePointId(10620, 9366, 0)), "Storage")
 check("a spot needing a map mod is not offered without it", Core.phones.candidates["10646_11061_0"], nil)
+
+-- The map phones, as the server loads them: before the spots.
 Core.phones.candidates = {}
 Core.shipped = {}
+require "PhunTaxi/map_phones"
+-- Already required above, and the stub require runs a file once.
+dofile(ROOT .. "/Contents/mods/PhunTaxi/common/media/lua/shared/PhunTaxi/defaults.lua")
+local maps, spots = 0, 0
+for _, c in pairs(Core.phones.candidates) do
+    if c.replace then
+        maps = maps + 1
+    else
+        spots = spots + 1
+    end
+end
+check("the vanilla map phones are offered", maps > 300, true)
+check("as map phones", Core.phones.candidates["420_9872_0"] and Core.phones.candidates["420_9872_0"].replace, true)
+check("a map mod's are not without it", Core.phones.candidates["4286_15491_0"], nil)
+check("and the spots are still there", spots > 50, true)
+
+-- A resolve over the whole shipped pool, timed, since it runs in game on a
+-- square load. LuaJIT is far faster than Kahlua, so this is only a ceiling
+-- on the work, not a measure of the hitch.
+reset()
+Core.settings.PhoneChance = 100
+Core.settings.PhoneDistance = 300
+PhoneSwap.start()
+local began = os.clock()
+PhoneSwap.resolve(function(n)
+    return math.random(0, n - 1)
+end)
+local took = os.clock() - began
+local taken = 0
+for _, record in pairs(PhoneSwap.store()) do
+    if record.pending then
+        taken = taken + 1
+    end
+end
+check("the whole pool resolves to a spaced set", taken > 40 and taken < maps, true)
+check("in well under a tenth of a second here", took < 0.1, true)
+print(string.format("  whole pool: %d map phones, %d spots, %d taken at 300, %.1f ms", maps, spots, taken,
+    took * 1000))
+Core.phones.candidates = {}
+Core.shipped = {}
+
+-- ---------------------------------------------------------------------------
+-- tools.sort, which resolve and the points list use because Kahlua's
+-- table.sort recursed into a stack overflow on the pool's thousand keys.
+-- ---------------------------------------------------------------------------
+local sortOk = true
+for _, n in ipairs({0, 1, 2, 3, 7, 64, 1000, 5001}) do
+    local list, want = {}, {}
+    for i = 1, n do
+        list[i] = tostring(math.random(1, 100000)) .. "_" .. i
+        want[i] = list[i]
+    end
+    table.sort(want)
+    Core.tools.sort(list)
+    for i = 1, n do
+        if list[i] ~= want[i] then
+            sortOk = false
+        end
+    end
+end
+check("tools.sort agrees with table.sort at every size", sortOk, true)
+local desc = Core.tools.sort({3, 1, 2}, function(a, b) return a > b end)
+check("with a comparator", table.concat(desc, ","), "3,2,1")
+local pairsList = {{k = 1, v = "a"}, {k = 0, v = "b"}, {k = 1, v = "c"}, {k = 0, v = "d"}}
+Core.tools.sort(pairsList, function(a, b) return a.k < b.k end)
+check("and stable", pairsList[1].v .. pairsList[2].v .. pairsList[3].v .. pairsList[4].v, "bdac")
 
 os.exit(report.finish("phones") == 0 and 0 or 1)

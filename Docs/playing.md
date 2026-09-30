@@ -23,7 +23,7 @@ Where you can go is everything **your player** has found, over every
 character you have played in this world. A brand new player knows only the
 start points the server gives them.
 
-> If the server has **Wake Up Indoors** off, or the garage is full, you skip
+> If the server has **Spawn at Garage** off, or the garage is full, you skip
 > the garage and are put straight at the last place you chose, or a start
 > point you know.
 
@@ -48,8 +48,11 @@ longer offered on it.
 Some servers let you find a phone just by walking right up to it. Then it
 rings once as you arrive, and you remember it without picking it up.
 
-A live phone you have not found yet **rings** now and then while you are
-nearby. Follow the sound.
+A live phone you have not found yet **rings** when you come near it. Follow
+the sound. Each phone rings once each time you play, for half a minute or
+however long the server says, and picking it up stops it. You can turn the
+ring up, down or off for yourself in **Options, Mods, PhunTaxi**, along with
+the taxi driving off after a ride.
 
 Pay phones are never shown in your list until you have found them. Live ones
 cannot be picked up, moved, rotated, dismantled or smashed.
@@ -64,10 +67,10 @@ a pay phone raises the stakes; finding one lowers them.
 What you have found belongs to this world. If the server is wiped, your
 unlocks go with it.
 
-## The taxi between phones
+## Fast travel
 
-If the server has it on, right click a pay phone you know and choose **Call
-a taxi**. The window lists the other pay phones you know, with the fare on the
+If the server has **Fast Travel** on, right click a pay phone you know and
+choose **Call a taxi**. The window lists the other pay phones you know, with the fare on the
 Go button. The places everybody knows from the start come with a pay phone of
 their own, right where you arrive, and you know it already. The fare is paid
 from your PhunMart change, and is taken only once the ride has gone ahead.

@@ -33,21 +33,26 @@ PhunTaxi = {
         -- into the account and cleared; see unlocks.lua.
         unlockedKey = "PhunTaxi_unlocked",
         lastChoiceKey = "PhunTaxi_lastChoice",
-        -- Whether this character has been placed yet, on the PLAYER. See
-        -- server/placement.lua: nil is "not looked at", "pending" is a new
-        -- character still choosing, and a number is when they were placed.
-        -- Kept beside the unlocks for the same reason: a character who
-        -- rejoins must not be offered a second free choice.
+        -- SINGLE PLAYER ONLY. Whether this character has been placed yet, on
+        -- the PLAYER. See server/placement.lua: nil is "not looked at",
+        -- "pending" is a new character still choosing, and a number is when
+        -- they were placed. On a server nothing is stored: standing in
+        -- `garage` is pending.
         spawnedKey = "PhunTaxi_spawned",
+        -- The Taxi Garage, cell 87,49, inclusive at both ends. Standing in it
+        -- is what makes a character's ride free (server/placement.lua), and
+        -- it is the PhunZones zone (zones.lua).
+        garage = {
+            x1 = 22272,
+            y1 = 12544,
+            x2 = 22527,
+            y2 = 12799
+        },
         -- Durable id of a point a player BUILT, written into the object's
         -- modData. Inside movableData rather than at the top level, because
         -- vanilla drops a top level key on pickup for some object classes and
         -- not others: see the pickup row in PhunInteriors' API table.
         objectIdKey = "PhunTaxi_pointId",
-        -- Stamped on a vanilla pay phone once it has had its roll, win or
-        -- lose, so it does not roll again every time its chunk loads. The
-        -- same sentinel PhunMart puts on a vending machine.
-        phoneRolledKey = "PhunTaxi_phoneRolled",
         -- On a phone a player built, the account key of who built it, so
         -- their client can offer to take it down. The server's record is the
         -- truth; this is only what the menu reads.
@@ -272,20 +277,21 @@ Core.defaults = {
     -- No taxi while a zombie is within this many squares. Zero turns the
     -- check off.
     TaxiZombieRadius = 6,
-    -- Whether choosing a point costs the character anything on respawn.
-    RespawnPenalty = false,
-    -- Percent chance a vanilla pay phone is swapped for one of ours, rolled
-    -- once per phone. Zero turns the swap off.
+    -- Percent chance a map's pay phone goes live, against its rank's roll,
+    -- which is fixed per world (server/phone_swap.lua). Zero leaves only the
+    -- extra spots, which carry their own chance.
     PhoneChance = 35,
-    -- No swapped phone within this many squares of another. Zero turns the
+    -- No live phone within this many squares of another. Zero turns the
     -- spacing off.
-    PhoneDistance = 500,
-    -- A phone this player has never used rings now and then when they are
+    PhoneDistance = 300,
+    -- A phone this player has never used rings, once a session, when they are
     -- near it, to draw them over. Decided and played client side; see
     -- client_phone.lua.
     PhoneRing = true,
     -- How near, in squares. 30 because that is as far as the sound carries.
-    PhoneRingRange = 30
+    PhoneRingRange = 30,
+    -- How long it rings, in real seconds: see Core.phones.ringSound.
+    PhoneRingSeconds = 30
 }
 
 function Core.getOption(name, default)
