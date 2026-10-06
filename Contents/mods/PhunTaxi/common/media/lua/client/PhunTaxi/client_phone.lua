@@ -189,6 +189,10 @@ function BuildAction:stop()
 end
 
 function BuildAction:perform()
+    -- Marked before the server is asked, so the phone going up never rings
+    -- for the one who built it, whatever order phoneUp and the payload that
+    -- makes it known arrive in.
+    Client.markPhone(self.square:getX(), self.square:getY(), self.square:getZ())
     Client.buildPhone(self.square, self.facing, self.kit)
     ISBaseTimedAction.perform(self)
 end
@@ -373,9 +377,22 @@ end
 
 local ringing = nil
 
+-- How often a ring asks whether its phone still stands.
+local CHECK_MS = 1000
+
 local function tickRing()
-    if ringing and getTimestampMs() >= ringing.stopAt then
+    if not ringing then
+        return
+    end
+    local now = getTimestampMs()
+    if now >= ringing.stopAt then
         Client.stopRing()
+    elseif ringing.spot and now >= ringing.checkAt then
+        ringing.checkAt = now + CHECK_MS
+        -- Taken down, or swapped back to vanilla, mid ring.
+        if standing(ringing.spot) ~= true then
+            Client.stopRing()
+        end
     end
 end
 
@@ -427,8 +444,42 @@ function Client.ringNearest()
     local spot = Core.phoneToRing(spots, skipKeys(), player:getX(), player:getY(),
         Core.settings.PhoneRingRange or 0, standing)
     if spot then
-        rung[Core.phoneKey(spot.x, spot.y, spot.z)] = true
+        local key = Core.phoneKey(spot.x, spot.y, spot.z)
+        rung[key] = true
         Client.ringPhone(spot.x, spot.y, spot.z)
+        -- Only this ring is for a phone the player does not know, so only
+        -- this one is hushed when it becomes known. The short ring of a phone
+        -- just found (Client.announceUnlock) is for a known one on purpose.
+        if ringing then
+            ringing.key = key
+            ringing.spot = spot
+            ringing.checkAt = getTimestampMs() + CHECK_MS
+        end
+    end
+end
+
+--- A phone this player knows without the server saying so yet: one they
+--- have just built. Never rung for them this session, and hushed if it
+--- already is.
+function Client.markPhone(x, y, z)
+    local key = Core.phoneKey(x, y, z or 0)
+    rung[key] = true
+    if ringing and ringing.key == key then
+        Client.stopRing()
+    end
+end
+
+--- Stop the ring of an unknown phone that the points now say is known.
+--- After every payload and every merged discovery.
+function Client.hushKnown()
+    if not (ringing and ringing.key) then
+        return
+    end
+    for _, point in ipairs(Client.points or {}) do
+        if point.known and point.phone == ringing.key then
+            Client.stopRing()
+            return
+        end
     end
 end
 

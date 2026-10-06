@@ -62,6 +62,9 @@ function Client.receivePoints(arguments)
     if arguments and Client.notePhoneKeys then
         Client.notePhoneKeys(arguments.phones)
     end
+    if Client.hushKnown then
+        Client.hushKnown()
+    end
 
     -- A new character is pointed at the taxi rather than handed the picker:
     -- the ride is something they walk up to. See client_taxi.lua.
@@ -115,6 +118,9 @@ function Client.announceUnlock(arguments)
     if arguments.point and Client.points then
         Core.mergePoint(Client.points, arguments.point)
         triggerEvent(Core.events.OnPointsReceived, Client.points)
+        if Client.hushKnown then
+            Client.hushKnown()
+        end
     end
     local phone = arguments.phone
     if phone and Client.ringPhone then
