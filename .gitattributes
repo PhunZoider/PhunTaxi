@@ -8,3 +8,5 @@
 *.pack      binary
 *.tiles     binary
 *.xcf       binary
+*.blend     binary
+*.glb       binary

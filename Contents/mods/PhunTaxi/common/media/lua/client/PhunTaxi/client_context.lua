@@ -4,6 +4,7 @@ end
 require "PhunTaxi/client_main"
 require "PhunTaxi/phones"
 require "PhunTaxi/client_phone"
+require "PhunTaxi/client_build"
 require "PhunTaxi/tools"
 require "PhunTaxi/phone_guards"
 require "ISUI/ISTextBox"
@@ -29,19 +30,47 @@ local function onUsePhone(player, phone)
     Client.queueUsePhone(player, phone)
 end
 
--- One of our phones among the clicked objects or on their squares. Squares as
--- well, because what lands in worldObjects depends on which pixel was
--- clicked, and a phone is a small target.
+local function phoneOn(square)
+    local objects = square and square:getObjects()
+    if not objects then
+        return nil
+    end
+    for i = 0, objects:size() - 1 do
+        local candidate = objects:get(i)
+        local sprite = candidate:getSprite()
+        if sprite and Core.phoneFacing(sprite:getName()) then
+            return candidate
+        end
+    end
+    return nil
+end
+
+-- Squares in front of a clicked one, in screen terms below it: a tall object
+-- on one of these is drawn over the clicked square, and where it overlaps
+-- the wall behind it the picker can hand us the wall instead.
+local IN_FRONT = {{1, 0}, {0, 1}, {1, 1}}
+
+-- One of our phones on the clicked squares, or else just in front of one,
+-- and the object that was clicked. Squares, because what lands in
+-- worldObjects depends on which pixel was clicked, and a phone is a small
+-- target. In front as well, because clicking the upper half of a phone
+-- against a wall picked the wall, on the square behind. The clicked object
+-- is what Project Viewpoint's first person menu wants to see among an
+-- option's arguments, which is not the phone when the wall was picked.
 local function findPhone(worldObjects)
+    for _, obj in ipairs(worldObjects) do
+        local phone = phoneOn(obj.getSquare and obj:getSquare())
+        if phone then
+            return phone, obj
+        end
+    end
     for _, obj in ipairs(worldObjects) do
         local square = obj.getSquare and obj:getSquare()
         if square then
-            local objects = square:getObjects()
-            for i = 0, objects:size() - 1 do
-                local candidate = objects:get(i)
-                local sprite = candidate:getSprite()
-                if sprite and Core.phoneFacing(sprite:getName()) then
-                    return candidate
+            for _, d in ipairs(IN_FRONT) do
+                local phone = phoneOn(getCell():getGridSquare(square:getX() + d[1], square:getY() + d[2], square:getZ()))
+                if phone then
+                    return phone, obj
                 end
             end
         end
@@ -49,21 +78,33 @@ local function findPhone(worldObjects)
     return nil
 end
 
+local function isTaxi(obj)
+    local sprite = obj.getSprite and obj:getSprite()
+    return sprite ~= nil and Core.isTaxiTile(sprite:getName())
+end
+
 -- A taxi tile (Core.isTaxiTile), clicked or on a clicked square, is the taxi.
+-- Returns the tile, the clicked object itself when it is one: Project
+-- Viewpoint's first person menu keeps an option only when an argument IS the
+-- object under the crosshair (see PhunInteriors' CLAUDE.md).
 local function onTaxi(worldObjects)
+    for _, obj in ipairs(worldObjects) do
+        if isTaxi(obj) then
+            return obj
+        end
+    end
     for _, obj in ipairs(worldObjects) do
         local square = obj.getSquare and obj:getSquare()
         if square then
             local objects = square:getObjects()
             for i = 0, objects:size() - 1 do
-                local sprite = objects:get(i):getSprite()
-                if sprite and Core.isTaxiTile(sprite:getName()) then
-                    return true
+                if isTaxi(objects:get(i)) then
+                    return objects:get(i)
                 end
             end
         end
     end
-    return false
+    return nil
 end
 
 -- ---------------------------------------------------------------------------
@@ -115,11 +156,13 @@ local function disable(option, text)
     option.toolTip = tooltip
 end
 
+-- The clicked square, and the object it was read off, which is what Project
+-- Viewpoint's first person menu needs to see among an option's arguments.
 local function clickedSquare(worldObjects)
     for _, obj in ipairs(worldObjects) do
         local square = obj.getSquare and obj:getSquare()
         if square then
-            return square
+            return square, obj
         end
     end
     return nil
@@ -196,26 +239,36 @@ local function addSetupMenu(player, context, worldObjects)
     sub:addOption(getText("ContextMenu_PhunTaxi_AddPoint"), player, onAddPoint, square)
 end
 
---- "Install pay phone", for a player carrying a kit, on a square with no
---- phone. The phone faces the player, as the admin's does, and is greyed
---- out on their own square. Whether it may go there is the server's call;
---- this only shows the option when it could.
+--- "Install pay phone", for a player carrying a kit. It picks up the build
+--- cursor (client_build.lua), where the phone is placed and turned; whether
+--- it may go there is the server's call.
 local function addBuildOption(player, context, worldObjects)
     if not Core.settings.AllowBuiltPoints then
         return
     end
-    local kit = player:getInventory():getFirstTypeRecurse(Core.consts.phoneKitItem)
-    local square = kit and clickedSquare(worldObjects)
-    if not square or findAnyPhone(worldObjects) then
+    if not player:getInventory():getFirstTypeRecurse(Core.consts.phoneKitItem) then
         return
     end
-    local facing = facingToward(player, square)
-    local option = context:addOption(getText("ContextMenu_PhunTaxi_BuildPhone"), player, Client.queueBuildPhone,
-        square, facing, kit)
-    if not facing then
-        disable(option, getText("IGUI_PhunTaxi_Tip_StandBeside"))
-    end
+    local _, clicked = clickedSquare(worldObjects)
+    -- The clicked object trails, ignored by startBuildCursor, so the option
+    -- survives in Viewpoint's first person menu.
+    context:addOption(getText("ContextMenu_PhunTaxi_BuildPhone"), player, Client.startBuildCursor, clicked)
 end
+
+-- The same, from the kit in the inventory.
+Events.OnFillInventoryObjectContextMenu.Add(function(playerIndex, context, items)
+    local player = getSpecificPlayer(playerIndex)
+    if not player or not Core.settings.AllowBuiltPoints then
+        return
+    end
+    for _, entry in ipairs(items) do
+        local item = type(entry) == "table" and entry.items and entry.items[1] or entry
+        if item and item.getFullType and item:getFullType() == Core.consts.phoneKitItem then
+            context:addOption(getText("ContextMenu_PhunTaxi_BuildPhone"), player, Client.startBuildCursor)
+            return
+        end
+    end
+end)
 
 Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObjects, test)
     local player = getSpecificPlayer(playerIndex)
@@ -226,23 +279,25 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObje
     -- Offered for any phone of ours this player does not know yet, including
     -- one an admin just put down. Whether it is a spawn point is the server's
     -- answer.
-    local phone = findPhone(worldObjects)
+    -- Every option here carries the clicked object last, ignored by its
+    -- handler, for Viewpoint's first person menu (see findPhone).
+    local phone, clicked = findPhone(worldObjects)
     if phone then
         if not Client.knowsPhone(phone) then
-            context:addOption(getText("ContextMenu_PhunTaxi_UsePhone"), player, onUsePhone, phone)
+            context:addOption(getText("ContextMenu_PhunTaxi_UsePhone"), player, onUsePhone, phone, clicked)
         end
         -- Fast travel, when the server has it on, from a phone this player
         -- has already found: picking it up comes first. The fare and every
         -- check are the server's; see server/rides.lua.
         if Core.settings.TaxiFastTravel and Client.knowsPhone(phone) then
-            context:addOption(getText("ContextMenu_PhunTaxi_CallTaxi"), player, Client.queueTaxi, phone)
+            context:addOption(getText("ContextMenu_PhunTaxi_CallTaxi"), player, Client.queueTaxi, phone, clicked)
         end
         -- The builder's own phone. The stamp is only what this menu reads;
         -- the server checks its record. Taking it down walks up and picks up
         -- the receiver first, which costs nothing and gets the builder there.
         if phone:getModData()[Core.consts.phoneOwnerKey] == Core.accountKey(player) then
             context:addOption(getText("ContextMenu_PhunTaxi_TakeDown"), player, Client.queueUsePhone, phone,
-                Client.takeDownPhone)
+                Client.takeDownPhone, clicked)
         end
     else
         addBuildOption(player, context, worldObjects)
@@ -253,8 +308,11 @@ Events.OnFillWorldObjectContextMenu.Add(function(playerIndex, context, worldObje
     -- An admin with the setup menu on gets it anywhere, as a map of every
     -- point they know. Whether Go works is the server's
     -- decision, not this menu's.
-    if onTaxi(worldObjects) then
-        context:addOption(getText("ContextMenu_PhunTaxi_Taxi"), player, onOpenPicker)
+    -- The taxi rides along as a trailing argument onOpenPicker ignores, so
+    -- the option survives in Viewpoint's first person menu.
+    local taxi = onTaxi(worldObjects)
+    if taxi then
+        context:addOption(getText("ContextMenu_PhunTaxi_Taxi"), player, onOpenPicker, taxi)
     elseif isSetupAdmin(player) then
         context:addOption(getText("ContextMenu_PhunTaxi_Points"), player, onOpenPicker)
     end

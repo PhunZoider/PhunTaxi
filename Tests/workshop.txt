@@ -1,52 +1,7 @@
 version=1
 id=3809819336
 title=PhunTaxi [DEV]
-description=⚠️ DEV BRANCH. Preview build for testing and feedback of PhunTaxi. This version may change frequently and could break between updates.
-description=
-description=Reworked spawn system + (optional) fast travel
-description=
-description=PhunTaxi is all about rewarding those that risk exploration! You start knowing a few places, find the rest by exploring, and everything you find persists between characters. This ramps up the risk/reward of exploration
-description=
-description=New characters awake in the Taxi Garage, off the map, and can take a free ride to any place their player knows (or the admin configures). The further out you explore without finding a taxi phone, the more the stakes increase.
-description=
-description=[h2]Features[/h2]
-description=[list]
-description=[*][b]Earned spawn points.[/b] Walk to a place to remember it, and listen out for ringing pay phones. Depending on the server, picking one up (or just walking up to it) logs the location for future spawning and fast travel.
-description=[*][b]Kept across deaths.[/b] What you find belongs to your player, not your character, so every place you find is somewhere your next character can start.
-description=[*][b]Taxi between pay phones.[/b] If the server turns it on, call a taxi from any pay phone you know to any other, for a fare in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] change.
-description=[*][b]Build your own pay phones.[/b] Craft a Pay Phone Kit at Electricity 4 and put one up where you want to come back to. Take it down again and you get the kit back.
-description=[*][b]Nobody rides into your safehouse.[/b] No ride ever lands in somebody else's safehouse, so a pay phone inside yours takes only you and your members home.
-description=[*][b]Multiplayer first.[/b] One code path for single player and multiplayer.
-description=[/list]
-description=
-description=[h2]For server owners[/h2]
-description=[list]
-description=[*]Every constraint is a sandbox option: how close counts as found, how many pay phones are live, whether players can build them, the taxi and its fares. Turn off whatever is taking the phun out of it.
-description=[*]Set a world up in game: turn the setup menu on in the spawn point editor, then right click to add spawn points and keep pay phones, and use the spawn point editor from the admin panel to see, visit and rename every point.
-description=[*]Your setup survives a wipe. It is saved to PhunTaxi.json in the server's Lua folder, which you can also edit by hand or copy to another server.
-description=[/list]
-description=
-description=[h2]For mod authors[/h2]
-description=Spawn points are registered, not hard coded. Hook the vanilla OnInitGlobalModData event and call PhunTaxi.registerPoint to add your own. A point registered late is picked up the moment it arrives, so load order cannot break it.
-description=
-description=[h2]Requirements and compatibility[/h2]
-description=[list]
-description=[*][b]Requires [url=https://github.com/PhunZoider/PhunInteriors]PhunInteriors[/url].[/b] The Garage is one of its rooms.
-description=[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] is optional, for taxi fares. [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252660]PhunZones 2[/url] is optional, to lock the Taxi Garage down further and to set pay phone chance and spacing per zone.
-description=[*]Ships a one cell map at cell 87,49. Another map mod using that cell will conflict.
-description=[/list]
-description=
-description=[h2]Status[/h2]
-description=Pre-release. Expect rough edges, and please report what you find. The four shipped spawn points have been checked in game; much of the rest has not yet been seen working on a live server.
-description=
-description=[h2]Documentation[/h2]
-description=[list]
-description=[*][url=https://github.com/PhunZoider/PhunTaxi/blob/main/Docs/playing.md]Playing[/url]: waking up, finding places, pay phones, the taxi
-description=[*][url=https://github.com/PhunZoider/PhunTaxi/blob/main/Docs/sandbox-options.md]Sandbox options[/url]: every option and its default
-description=[*][url=https://github.com/PhunZoider/PhunTaxi/blob/main/Docs/admin.md]Running a server[/url]: world setup, the editor, PhunTaxi.json and console commands
-description=[*][url=https://github.com/PhunZoider/PhunTaxi/blob/main/Docs/modding.md]Adding spawn points[/url]: the API for other mods
-description=[/list]
-description=
-description=Coded with love for our awesome [url=https://discord.gg/v2USyAtP6q]PhunZoid[/url] community.
+description=⚠️ DEV BRANCH. Preview build for testing and feedback of [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3812506730]PhunTaxi[/url]. This version may change frequently and could break between updates.
+description= This version may also fall behind the version linked above.
 tags=Build 42;Multiplayer
 visibility=public

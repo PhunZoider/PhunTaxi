@@ -68,16 +68,41 @@ function MapPanel:instantiate()
     self:createChildren()
 end
 
--- Frames the owner draws before the map data is loaded: one to put up the
--- window and the list with "Loading map" where the map goes, then the load.
--- The load reads every map in the server's Map= list and stops the game
--- while it does, so the window is up first rather than after it.
-local LOAD_AFTER_FRAMES = 2
+-- ---------------------------------------------------------------------------
+-- Loading, spread over frames.
+--
+-- vanilla's MapUtils.initDefaultMapData and initDefaultStreetData walk every
+-- map in the server's Map= list in one call. The worldmap.xml of each is read
+-- on the game's file thread (WorldMapDataAssetManager), but each streets.xml
+-- is parsed on the main thread the first time it is seen, and every new map
+-- copies all of the streets into its own combined set. With a long Map= list
+-- that is seconds of a stopped game in one frame, and the window looks hung.
+--
+-- So the same calls, in the same order, are made a few at a time: steps run
+-- until STEP_BUDGET_MS is spent and the rest wait for the next frame. The
+-- window, the list and the bar under "Loading map" keep drawing between them.
+-- One map's streets.xml is still one step, and a big one is still a hitch,
+-- but it is one hitch per map rather than all of them at once. The map is
+-- shown once the file thread has finished too (isDataLoaded, which is what
+-- vanilla's MapSpawnSelect waits on), so it never shows half drawn.
+--
+-- Both the parsed worldmap.xml and streets.xml are cached by the engine for
+-- the session, so the first open pays for the parse and later ones only for
+-- the copy. The owners keep their window when closed, so their map stays
+-- loaded and a second open pays nothing.
+-- ---------------------------------------------------------------------------
 
---- Ask for the map data and style, loaded a frame or two later: see
---- LOAD_AFTER_FRAMES. Called once, after the panel is added to its owner,
---- which must call loadWhenDrawn from its update and drawLoading from its
---- render. Hidden until loaded, so an empty UIWorldMap is never drawn.
+-- Milliseconds of loading per frame before the rest waits for the next one.
+local STEP_BUDGET_MS = 12
+-- Longest wait for the file thread after the last step before the map is
+-- shown anyway. A map that failed to load must not leave the window on
+-- "Loading map" for good.
+local DATA_WAIT_MS = 20000
+
+--- Ask for the map data and style, loaded over the next frames. Called once,
+--- after the panel is added to its owner, which must call loadWhenDrawn from
+--- its update and drawLoading from its render. Hidden until loaded, so an
+--- empty UIWorldMap is never drawn.
 --
 -- @param hideUnvisited  true draws only what this character has seen, which
 --                       is what "the player's map" means. The picker passes
@@ -87,23 +112,107 @@ local LOAD_AFTER_FRAMES = 2
 function MapPanel:initMap(hideUnvisited)
     self.hideUnvisited = hideUnvisited == true
     self.loaded = false
-    self.loadIn = LOAD_AFTER_FRAMES
+    self.loadSteps = nil
+    self.loadStep = 0
     self:setVisible(false)
 end
 
---- The owner's update: count down, then load and show the map, and go to
---- the view asked for while it was loading.
+--- Every call vanilla's loaders and ISWorldMap:initDataAndStyle make, one
+--- closure each, in their order. Built on the first update rather than in
+--- initMap, so the window has been drawn once before any of it runs.
+function MapPanel:buildLoadSteps()
+    local steps = {}
+    local add = function(label, fn)
+        table.insert(steps, {
+            label = label,
+            fn = fn
+        })
+    end
+    local api = self.mapAPI
+    local dirs = {}
+    local lotDirs = getLotDirectories()
+    for i = 1, lotDirs:size() do
+        table.insert(dirs, "media/maps/" .. lotDirs:get(i - 1))
+    end
+
+    -- MapUtils.initDefaultMapData: highest priority (mods) first.
+    add("clearData", function()
+        self.javaObject:getAPIv1():clearData()
+    end)
+    for _, dir in ipairs(dirs) do
+        add("data " .. dir, function()
+            MapUtils.initDirectoryMapData(self, dir)
+        end)
+    end
+    add("bounds", function()
+        api:setBoundsFromWorld()
+    end)
+    -- MapUtils.initDefaultStreetData, the main thread parse.
+    add("clearStreetData", function()
+        api:getStreetsAPI():clearStreetData()
+    end)
+    for _, dir in ipairs(dirs) do
+        add("streets " .. dir, function()
+            MapUtils.initDirectoryStreetData(self, dir)
+        end)
+    end
+    add("style", function()
+        MapUtils.initDefaultStyleV3(self)
+        MapUtils.overlayPaper(self)
+    end)
+    add("options", function()
+        api:setBoolean("Isometric", false)
+        api:setBoolean("HideUnvisited", self.hideUnvisited)
+        api:setBoolean("Players", true)
+        api:setBoolean("RemotePlayers", false)
+        api:setBoolean("Symbols", true)
+        api:setBoolean("MiniMapSymbols", false)
+        api:centerOn((api:getMinXInSquares() + api:getMaxXInSquares()) / 2,
+            (api:getMinYInSquares() + api:getMaxYInSquares()) / 2)
+    end)
+    return steps
+end
+
+--- The owner's update: run the next steps, and once they and the file
+--- thread are done, show the map and go to the view asked for meanwhile.
 function MapPanel:loadWhenDrawn()
     if self.loaded ~= false then
         return
     end
-    self.loadIn = self.loadIn - 1
-    if self.loadIn > 0 then
+    if not self.loadSteps then
+        -- The first update after initMap: the window has been drawn once.
+        self.loadSteps = self:buildLoadSteps()
+        self.loadStarted = getTimestampMs()
         return
     end
-    -- First, so loadMap's own setHideUnvisited reaches the map.
+    local steps = self.loadSteps
+    local frameStart = getTimestampMs()
+    while self.loadStep < #steps and getTimestampMs() - frameStart < STEP_BUDGET_MS do
+        self.loadStep = self.loadStep + 1
+        local step = steps[self.loadStep]
+        local t = getTimestampMs()
+        step.fn()
+        t = getTimestampMs() - t
+        if getDebug() and t >= 50 then
+            print("PhunTaxi: map load, " .. tostring(t) .. " ms in " .. step.label)
+        end
+    end
+    if self.loadStep < #steps then
+        return
+    end
+    if not self.stepsDone then
+        self.stepsDone = getTimestampMs()
+    end
+    if not self.mapAPI:isDataLoaded() and getTimestampMs() - self.stepsDone < DATA_WAIT_MS then
+        return
+    end
+    if getDebug() then
+        print("PhunTaxi: map loaded in " .. tostring(getTimestampMs() - self.loadStarted) .. " ms, " ..
+                  tostring(getTimestampMs() - self.stepsDone) .. " of it waiting on the file thread")
+    end
     self.loaded = true
-    self:loadMap(self.hideUnvisited)
+    self.loadSteps = nil
+    self.stepsDone = nil
     self:setVisible(true)
     local view = self.pendingView
     self.pendingView = nil
@@ -112,34 +221,27 @@ function MapPanel:loadWhenDrawn()
     end
 end
 
---- The owner's render: "Loading map" where the map will be.
+--- The owner's render: "Loading map" where the map will be, and a bar for
+--- the steps done.
 function MapPanel:drawLoading(owner)
     if self.loaded ~= false then
         return
     end
     owner:drawRect(self.x, self.y, self.width, self.height, 0.9, 0.08, 0.08, 0.08)
     owner:drawRectBorder(self.x, self.y, self.width, self.height, 0.6, 0.4, 0.4, 0.4)
-    owner:drawTextCentre(getText("IGUI_PhunTaxi_MapLoading"), self.x + self.width / 2,
-        self.y + (self.height - tools.FONT_HGT_MEDIUM) / 2, 0.8, 0.8, 0.8, 1, UIFont.Medium)
-end
-
-function MapPanel:loadMap(hideUnvisited)
-    local api = self.mapAPI
-    MapUtils.initDefaultMapData(self)
-    api:setBoundsFromWorld()
-    MapUtils.initDefaultStreetData(self)
-    MapUtils.initDefaultStyleV3(self)
-    MapUtils.overlayPaper(self)
-
-    api:setBoolean("Isometric", false)
-    self:setHideUnvisited(hideUnvisited)
-    api:setBoolean("Players", true)
-    api:setBoolean("RemotePlayers", false)
-    api:setBoolean("Symbols", true)
-    api:setBoolean("MiniMapSymbols", false)
-
-    api:centerOn((api:getMinXInSquares() + api:getMaxXInSquares()) / 2,
-        (api:getMinYInSquares() + api:getMaxYInSquares()) / 2)
+    local textY = self.y + (self.height - tools.FONT_HGT_MEDIUM) / 2
+    owner:drawTextCentre(getText("IGUI_PhunTaxi_MapLoading"), self.x + self.width / 2, textY, 0.8, 0.8, 0.8, 1,
+        UIFont.Medium)
+    local steps = self.loadSteps
+    if not steps or #steps == 0 then
+        return
+    end
+    local barW = math.floor(self.width * 0.5)
+    local barH = math.max(4, math.floor(tools.FONT_HGT_SMALL / 3))
+    local barX = self.x + (self.width - barW) / 2
+    local barY = textY + tools.FONT_HGT_MEDIUM + 6
+    owner:drawRect(barX, barY, barW, barH, 0.8, 0.2, 0.2, 0.2)
+    owner:drawRect(barX, barY, math.floor(barW * self.loadStep / #steps), barH, 0.9, 0.15, 0.45, 0.85)
 end
 
 --- Draw only what this character has seen, or the whole map. Per map: the

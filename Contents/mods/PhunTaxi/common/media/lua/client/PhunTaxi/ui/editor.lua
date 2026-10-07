@@ -456,6 +456,10 @@ function Editor.open(player)
         instance:addToUIManager()
         Editor.instances[index] = instance
     else
+        -- Kept since the last open (see close), perhaps across a death, and a
+        -- new character is a new IsoPlayer on the same player number.
+        instance.player = player
+        instance.list.player = player
         instance:setVisible(true)
         instance:bringToTop()
     end
@@ -479,6 +483,7 @@ end
 
 function Editor:createChildren()
     ISCollapsableWindow.createChildren(self)
+    tools.freeCursorWhileShown(self)
     local top = self:titleBarHeight()
     local bottom = self:resizeWidgetHeight()
     local listW = math.max(math.floor(540 * FONT_SCALE), math.floor(self.width * 0.5))
@@ -568,10 +573,10 @@ function Editor:onPinClicked(pointId)
     end
 end
 
+--- Hidden, not destroyed: the map is the slow part of opening, and a kept
+--- window keeps it loaded (MapPanel, "Loading, spread over frames").
 function Editor:close()
     self:setVisible(false)
-    self:removeFromUIManager()
-    Editor.instances[self.playerIndex] = nil
 end
 
 return Editor

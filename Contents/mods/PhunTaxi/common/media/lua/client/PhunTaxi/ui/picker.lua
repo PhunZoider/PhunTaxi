@@ -332,6 +332,10 @@ function Picker.open(player, taxi)
     end
     if instance then
         instance.taxi = taxi
+        -- Kept since the last open (see close), perhaps across a death, and a
+        -- new character is a new IsoPlayer on the same player number.
+        instance.player = player
+        instance.list.player = player
     end
     if not instance then
         local core = getCore()
@@ -367,6 +371,7 @@ end
 
 function Picker:createChildren()
     ISCollapsableWindow.createChildren(self)
+    tools.freeCursorWhileShown(self)
     local top = self:titleBarHeight()
     local bottom = self:resizeWidgetHeight()
     local listW = math.max(math.floor(280 * FONT_SCALE), math.floor(self.width * 0.32))
@@ -519,10 +524,10 @@ function Picker:onPinClicked(pointId)
     end
 end
 
+--- Hidden, not destroyed: the map is the slow part of opening, and a kept
+--- window keeps it loaded (MapPanel, "Loading, spread over frames").
 function Picker:close()
     self:setVisible(false)
-    self:removeFromUIManager()
-    Picker.instances[self.playerIndex] = nil
 end
 
 return Picker

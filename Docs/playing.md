@@ -95,9 +95,11 @@ If the server allows it, you can put up pay phones of your own.
 
 1. Craft a **Pay Phone Kit** (Electrical, needs Electricity 4): a screwdriver,
    5 electronics scrap, 2 electric wire, a sheet of metal and 4 screws.
-2. With the kit on you, stand where a traveller should arrive, right click the
-   square **beside** you and choose **Install pay phone**. The phone goes on
-   that square, facing you.
+2. With the kit on you, right click the ground (or the kit itself) and choose
+   **Install pay phone**. The phone follows the mouse: press **R** (Rotate
+   Building) to turn it, and click to put it there. It shows red where it
+   cannot go. Your character walks to the square in front of it, which is
+   where a caller stands and a traveller arrives, and puts it up.
 
 It has to go:
 

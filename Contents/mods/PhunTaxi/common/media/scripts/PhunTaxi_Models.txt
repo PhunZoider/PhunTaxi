@@ -1,0 +1,15 @@
+module PhunTaxi
+{
+    /* The pay phone drawn in 3D in place of the phuninteriors_01_16..19
+       sprites, through media/spriteModels.txt. Built by
+       Art/phone/make_phone.py, in vanilla's IsoObject units (a tile is 1,
+       the floor is 0), so it is static and undoes the core scale as
+       vanilla's ramps do. */
+    model PayPhone
+    {
+        mesh = PhunTaxi/PayPhone,
+        texture = PhunTaxi/PayPhone,
+        static = true,
+        undoCoreScale = true,
+    }
+}

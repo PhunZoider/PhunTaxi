@@ -33,6 +33,19 @@ local RADIUS = 12
 local GIVE_UP = 120
 -- Floors above the taxi's own level to draw the line at: roughly its roof.
 local LIFT = 1
+-- Under Project Viewpoint, how often the halo note comes back while the
+-- taxi is still in range, in scans (about 30 seconds at 60fps).
+local HALO_EVERY = 60
+
+-- Project Viewpoint (3809306528) draws the world in 3D, where isoToScreen
+-- has nothing to do with where the taxi is: the line hung at a fixed spot on
+-- the screen and followed the player about. So while Viewpoint's Java is
+-- loaded the line is not drawn, and the same words go up as a halo note
+-- instead, which fades as vanilla's do. Viewpoint exposes no "is 3D on", and
+-- its table existing is the nearest thing.
+local function inViewpoint()
+    return Viewpoint ~= nil
+end
 
 local watching = false
 local ticks = 0
@@ -40,6 +53,8 @@ local misses = 0
 -- The middle of the taxi's tiles, {x, y, z}, or nil while none is in range.
 local anchor = nil
 local seen = false
+-- Scans since the last halo note, under Viewpoint.
+local sinceHalo = 0
 
 --- The middle of every taxi tile within RADIUS of the player on their level,
 --- or nil. The taxi is forty tiles; the average of their squares is its
@@ -94,6 +109,12 @@ local function onTick()
     end
     anchor = findTaxi(player)
     if anchor then
+        -- The first sighting, then every HALO_EVERY scans.
+        if inViewpoint() and (not seen or sinceHalo >= HALO_EVERY) then
+            player:setHaloNote(getText("IGUI_PhunTaxi_TaxiOnTheHouse"), 255, 255, 153, 300)
+            sinceHalo = 0
+        end
+        sinceHalo = sinceHalo + 1
         seen = true
         misses = 0
     elseif seen then
@@ -109,7 +130,7 @@ end
 
 local function onDraw()
     local player = getPlayer()
-    if not (anchor and player) then
+    if not (anchor and player) or inViewpoint() then
         return
     end
     local index = player:getPlayerNum()
@@ -146,6 +167,7 @@ function Client.watchTaxi()
     ticks = SCAN_TICKS
     misses = 0
     seen = false
+    sinceHalo = 0
     anchor = nil
     Events.OnTick.Add(onTick)
     Events.OnPreUIDraw.Add(onDraw)
