@@ -62,6 +62,30 @@ The taxi in the garage is PhunInteriors' too: `phuninteriors_02_0` to `_39`.
 "Take taxi ride" is offered on any of those tiles, so the garage has to have
 one placed where a new character can reach it. Nothing checks that it does.
 
+The roller door on the garage's north wall is vanilla's `walls_garage_02_051`
+to `_053`, painted as user tiles on the **Walls** layer of `spawn.tbx`, over a
+wall object with `InteriorTrim="0"` in the garage's own wall tiles. Each part
+of that is a fix, so keep all three:
+
+- On the Walls layer it replaces the generated wall. On any other layer it is
+  a second wall on the same edge, and Viewpoint draws both in one plane.
+- No trim, or the room's wainscot is drawn over the bottom half of the door.
+- Not `phuninteriors_01_009` behind it. PhunInteriors' Viewpoint pack draws
+  that sprite with a black floor slab, which covered the concrete in 3D.
+
+Those tiles are a real garage door, so the game makes them an IsoDoor.
+`shared/PhunTaxi/garage_guard.lua` refuses opening it, and the office's back
+door, which also opens onto the void: any shut door in the cell with a room
+on one side only.
+
+The south (y=28) and east (x=16) wall lines stand on squares no room claims,
+so the exporter gives them the building's exterior wall, and Viewpoint draws
+that one sprite on both faces. Each run carries an explicit wall object whose
+`Tile` is a copy of the room's own interior set (entries 43 to 46, appended
+so no index moves) and no trim, as PhunInteriors' `innerwalls.pl` does for
+its rooms. That script skips `spawn.tbx`, so these were written by hand: a
+room added or moved needs its runs redone.
+
 ## Power and water
 
 One `NoPowerOrWater` zone over the whole cell, exported into

@@ -408,17 +408,10 @@ end
 --- The rows this window shows. The whole payload, or in a taxi only the
 --- phones this character knows, less the one they are calling from.
 function Picker:rows()
-    if not self.taxi or not Client.points then
+    if not self.taxi then
         return Client.points
     end
-    local here = Core.phoneKey(self.taxi.x, self.taxi.y, self.taxi.z)
-    local out = {}
-    for _, point in ipairs(Client.points) do
-        if point.known and point.phone and point.phone ~= here then
-            table.insert(out, point)
-        end
-    end
-    return out
+    return Client.taxiRows(self.taxi)
 end
 
 --- The fare from the phone this taxi was called from to `point`, in cents.

@@ -9,6 +9,7 @@ see [Sandbox options](sandbox-options.md).
 |---|---|---|
 | PhunInteriors | **required** | The Taxi Garage is one of its rooms, the map uses its tiles, and every ride moves the player through it. |
 | PhunMart | optional | Taxi fares, paid in its change. Not needed for the free first ride, or for a taxi with both fare options at 0. |
+| Project Viewpoint | optional | Plays in 3D. PhunTaxi ships a model pack that draws the garage's taxi, and puts its options on Viewpoint's first person menu. The spawn point editor frees the mouse while it is open. |
 | PhunZones | optional | Adds a **Taxi Garage** zone over the garage cell: no zombies, and no safehouse, building, placing, pickup, scrapping or sledgehammer. Without it the cell is still walled, unpowered and has no zombie spawns. Also lets any zone set its own pay phone chance and spacing (see [Sandbox options](sandbox-options.md#pay-phones)). |
 
 PhunTaxi ships a one cell map, **cell 87,49** (world x 22272 to 22527, y
@@ -51,8 +52,9 @@ With the setup menu on you also get **Spawn points** on any right click, which
 opens the player's window as a map. An admin's **Go** works at any time, as a
 teleport.
 
-The phone guards (no pickup, rotate, dismantle, smash) do not apply in **admin
-mode**, which is the movables cheat or the build cheat. That is a separate
+The phone guards (no pickup, rotate, dismantle, smash) and the garage's
+jammed doors do not apply in **admin mode**, which is the movables cheat or
+the build cheat: turn it on to walk out of the garage. That is a separate
 switch from the setup menu. Turn it off to see what a player sees.
 
 ## The spawn point editor

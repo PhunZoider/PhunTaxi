@@ -80,8 +80,8 @@ folder.
 Contents/mods/PhunTaxi/common/
   mod.info                  id=phuntaxi, versionMin=42.0.0, require=phuninteriors
   media/sandbox-options.txt
-  media/lua/shared/PhunTaxi/   core, tools, points, phones, phone_guards, taxi,
-                                interiors, zones, defaults, candidates,
+  media/lua/shared/PhunTaxi/   core, tools, points, phones, phone_guards,
+                                garage_guard, taxi, interiors, zones, defaults, candidates,
                                 map_phones (generated)
   media/lua/server/PhunTaxi/   unlocks, placement, arrival, phone_swap, store,
                                 rides, building, server_{commands,events}
@@ -510,9 +510,11 @@ dedicated server does not have.
    an admin with the setup menu on gets "Spawn points" anywhere. So a new character
    who closes it must walk back to the taxi, and nothing checks that the
    spawn room has one.
-6. **`icon.png` and `poster.png` are missing.** `mod.info` names both, and
-   `Tests/root/PhunTaxi/common/` needs its own pair for the test id.
-7. **`workshop.txt` has an empty `id=`.** Fill on first publish.
+6. **The test id has no `icon.png`.** The mod has both of the images
+   `mod.info` names; `Tests/root/PhunTaxi/common/` has only `poster.png`.
+7. **Published.** `workshop.txt` is 3812506730 and `Tests/workshop.txt`
+   is 3809819336. Both pages go out with whatever the docs say, so an
+   unproven feature is not advertised there as working.
 8. **The pool has never run in game.** The swap it replaced (a roll on each
    vanilla phone as its square loaded) was seen working on 2026-09-30 at
    Raven Creek, at PhoneChance 100 and PhoneDistance 1: every phone swapped,
@@ -632,7 +634,8 @@ dedicated server does not have.
    the debug menu's Sprite Model Editor, which saves back into the file. The
    object's collision and properties still come from the tile, so the code
    is untouched. A phone of ours with the mod off draws as the old sprite.
-14. **The Viewpoint taxi has never been drawn in game.** Project Viewpoint
+14. **The Viewpoint taxi is drawn, and its menu works, in game**
+   (2026-10-07). Project Viewpoint
    (3809306528) drew nothing for `phuninteriors_02_*`, so in 3D the garage
    had no taxi. `media/viewpoint/` is a model pack, registered by
    `client_viewpoint.lua` as PhunInteriors registers its own, that binds
@@ -642,15 +645,12 @@ dedicated server does not have.
    the map places (`02_10` to `_19`, front north, read off the lotpack); the
    other thirty tiles are unbound, so a taxi placed another way is still
    invisible in 3D. `make_taxi.py` parses the ASCII FBX itself (Blender
-   refuses ASCII) and is regenerated, never hand edited. Unproven, in order
-   of risk: that ObjReader reads OBJ UVs bottom up, as written; that a model
-   reaching into the next chunk (the car spans y 23..27, a chunk edge at 24)
-   is drawn whole; that Viewpoint's crosshair picks it, so "Take taxi ride"
-   is offered (it passes the taxi tile as a trailing argument, PhunInteriors'
-   rule for Viewpoint's [F] menu, which keeps an option only when an argument
-   IS the object under the crosshair; "Build pay phone" passes the clicked
-   object the same way, unproven that the floor counts as one); and the
-   ride height (wheel tops just under the arches, nothing from physics).
+   refuses ASCII) and is regenerated, never hand edited. Viewpoint's
+   crosshair picks it and "Take taxi ride" is offered on its [F] menu: the
+   option passes the taxi tile as a trailing argument, PhunInteriors' rule
+   for that menu, which keeps an option only when an argument IS the object
+   under the crosshair. Still unproven: "Install pay phone" passes the
+   clicked object the same way, and whether the floor counts as one.
    The red ceiling and green walls seen round it on 2026-10-07 were
    PhunInteriors' pack built with `--debug`, not this one.
    The taxi hint (gap 12) is screen space, so in 3D it hung at a fixed spot
@@ -670,3 +670,17 @@ dedicated server does not have.
    `findPhone` also looks at the squares in front (+x, +y, both) of each
    clicked one, and every phone option carries the clicked object last for
    Viewpoint's menu. PhunMart's vending machines show the same thing.
+15. **The garage door guard has never run.** The roller door is vanilla's
+   `walls_garage_02_51` to `_53`, real garage door tiles (`doorN`,
+   `GarageDoor`), so it is an IsoDoor in game (see `Docs/map.md` for how
+   `spawn.tbx` lays it). `shared/.../garage_guard.lua` makes
+   `ISOpenCloseDoor:isValid` refuse a shut IsoDoor in the garage's cell
+   with a room on one side only (`getRoom` on `getSquare` and
+   `getOppositeSquare`), outside admin mode (the phones' cheat check). That
+   is the roller door and the office's back door; the doors between rooms
+   still work. A lock would not hold: anyone inside may unlock by hand.
+   Unproven: that every way of opening it, the interact key in particular,
+   goes through `ISOpenCloseDoor`, that the server asks `isValid`, and that
+   the room test holds on a client. Breaking a door with a weapon is not
+   stopped. The south and east walls carry the rooms' interior sets as
+   their exterior (`Docs/map.md`), unproven in 3D and in the iso view.

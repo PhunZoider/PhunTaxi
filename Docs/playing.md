@@ -7,8 +7,8 @@ kept for your **next** character, not just this one.
 ## Waking up
 
 A new character wakes up in the **Taxi Garage**, a walled room off the map.
-There is no door out. A line pulses over the taxi: right click it and choose
-**Take taxi ride**.
+The roller door is jammed shut. A line pulses over the taxi: right click it
+and choose **Take taxi ride**.
 
 The window that opens lists the places you know, grouped by town, with a map
 beside them. Click a town to open it and fit the map to it, pick a place, and
@@ -57,6 +57,20 @@ the taxi driving off after a ride.
 Pay phones are never shown in your list until you have found them. Live ones
 cannot be picked up, moved, rotated, dismantled or smashed.
 
+## Playing in 3D
+
+PhunTaxi works with [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528):
+
+- The taxi in the garage is drawn as a 3D car, and the pay phones are a 3D
+  model (in the normal view too).
+- Everything on PhunTaxi's right click menus is on Viewpoint's first person
+  menu as well: aim at the taxi or the phone and open it there.
+- A line over the taxi would float about the screen in 3D, so instead your
+  character notes the taxi when they first see it, and again now and then
+  while it is near.
+- The spawn point window frees the mouse while it is open. If the mouse
+  stays locked to looking, middle mouse is Viewpoint's own cursor toggle.
+
 ## Dying
 
 Your unlocks are kept with your player, not with the character. When a
@@ -78,6 +92,8 @@ from your PhunMart change, and is taken only once the ride has gone ahead.
 A taxi will not come:
 
 - from a phone you have not picked up yet: pick it up first,
+- when it is the only pay phone you know: there is nowhere to go, and your
+  character says so when they pick up,
 - while a zombie is close (six squares by default),
 - to the phone you are already standing at,
 - if you cannot afford it, or

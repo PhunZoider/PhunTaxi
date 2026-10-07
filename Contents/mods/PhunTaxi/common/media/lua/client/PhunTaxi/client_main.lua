@@ -294,6 +294,23 @@ function Client.openPicker()
     Picker.open(getPlayer())
 end
 
+--- Where a taxi from the phone at `from` ({x, y, z}) can go: every phone
+--- this character knows but that one. Nil before the first payload, which
+--- is not the same as nowhere.
+function Client.taxiRows(from)
+    if not Client.points then
+        return nil
+    end
+    local here = Core.phoneKey(from.x, from.y, from.z)
+    local out = {}
+    for _, point in ipairs(Client.points) do
+        if point.known and point.phone and point.phone ~= here then
+            table.insert(out, point)
+        end
+    end
+    return out
+end
+
 --- Open the picker as a taxi from the phone at `from` ({x, y, z, fx, fy},
 --- the phone's square and the one in front): only known phones, and the
 --- fare on the button.

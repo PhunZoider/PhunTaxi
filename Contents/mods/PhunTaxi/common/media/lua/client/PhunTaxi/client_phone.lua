@@ -140,9 +140,23 @@ end
 --- Walk up to a phone and call a taxi from it, then open the picker as a
 --- taxi from there. Only offered on a phone already found (client_context.lua),
 --- and the server refuses a ride from one that is not.
+---
+--- With no other phone known there is nowhere to send a taxi, so the player
+--- is told so at the phone rather than shown an empty picker. Before the
+--- first payload that cannot be told, and the picker opens to say it is
+--- loading.
 function Client.queueTaxi(player, phone)
     Client.queueUsePhone(player, phone, function(used)
         local square = used:getSquare()
+        local rows = Client.taxiRows({
+            x = square:getX(),
+            y = square:getY(),
+            z = square:getZ()
+        })
+        if rows and #rows == 0 then
+            player:setHaloNote(getText("IGUI_PhunTaxi_TaxiNowhere"), 255, 180, 60, 300)
+            return
+        end
         local facing = Core.phoneFacing(used:getSprite():getName())
         local fx, fy = Core.phoneFront(square:getX(), square:getY(), facing)
         Client.openTaxi({

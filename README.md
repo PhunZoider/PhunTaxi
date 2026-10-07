@@ -23,6 +23,9 @@ Part of the Phun mod family. Requires PhunInteriors.
   in PhunMart change.
 - **Build your own pay phones.** Craft a kit at Electricity 4 and put one up
   where you want to come back to.
+- **Plays in 3D** with [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528).
+  The garage's taxi is drawn as a 3D car, pay phones are a 3D model in
+  either view, and every option is on Viewpoint's first person menu.
 - **Nobody rides into your safehouse.** Checked before anybody moves.
 - **Admin setup that survives a wipe.** Add spawn points and keep pay phones
   from the right click menu or an in game editor; it is all saved to
@@ -49,6 +52,8 @@ Part of the Phun mod family. Requires PhunInteriors.
 - PhunMart (optional), for taxi fares.
 - PhunZones (optional), to lock the Taxi Garage cell down further, and to set
   pay phone chance and spacing per zone.
+- [Project Viewpoint](https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528)
+  (optional), to play in 3D.
 
 PhunTaxi ships a one cell map, cell 87,49. Another map mod using that cell
 will conflict.
@@ -58,7 +63,9 @@ will conflict.
 **Pre-release.** A new character has been put in the Taxi Garage on a
 server. Everything else is written and covered by the automated tests but has
 not yet been seen working in game: the picker, the rides, pay phones, the
-taxi, building phones, the editor and `PhunTaxi.json`.
+taxi, building phones, the editor and `PhunTaxi.json`. The 3D pay phone has
+been seen in game in both views, and the taxi under Project Viewpoint, with
+its ride on Viewpoint's menu.
 
 The four shipped spawn points have been checked in game, and each has a pay
 phone behind its arrival square. See [Running a server](Docs/admin.md#things-to-know).

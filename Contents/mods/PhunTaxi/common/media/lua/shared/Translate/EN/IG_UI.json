@@ -17,6 +17,7 @@
   "IGUI_PhunTaxi_PhoneDead": "The line is dead",
   "IGUI_PhunTaxi_PhoneTooFar": "You need to be standing at the phone",
   "IGUI_PhunTaxi_PhoneBolted": "This phone is bolted down",
+  "IGUI_PhunTaxi_GarageDoorShut": "The door is jammed shut. The taxi is the way out",
 
   "IGUI_PhunTaxi_Lbl_Filter": "Filter",
   "IGUI_PhunTaxi_Btn_Close": "Close",
@@ -97,6 +98,7 @@
   "IGUI_PhunTaxi_PhoneFound": "It rings once as you pass. You will remember this phone: %1",
   "IGUI_PhunTaxi_Desc_Taxi": "Where to? The fare is on the Go button, paid from your change.",
   "IGUI_PhunTaxi_Desc_TaxiNothing": "You do not know any other pay phones yet.",
+  "IGUI_PhunTaxi_TaxiNowhere": "No taxi will come: you do not know any other pay phones yet",
   "IGUI_PhunTaxi_Btn_GoFare": "Go (%1)",
   "IGUI_PhunTaxi_Confirm_Taxi": "Take the taxi to %1 for %2?",
   "IGUI_PhunTaxi_TaxiOff": "There is no taxi service here",

@@ -1,5 +1,5 @@
 version=1
-id=
+id=3812506730
 title=PhunTaxi
 description=Reworked spawn system + (optional) fast travel
 description=
@@ -14,6 +14,7 @@ description=[*][b]Kept across deaths.[/b] What you find belongs to your player, 
 description=[*][b]Fast travel.[/b] If the server turns it on, call a taxi from any pay phone you know to any other, for a fare in [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] change.
 description=[*][b]Build your own pay phones.[/b] Craft a Pay Phone Kit at Electricity 4 and put one up where you want to come back to. Take it down again and you get the kit back.
 description=[*][b]Nobody rides into your safehouse.[/b] No ride ever lands in somebody else's safehouse, so a pay phone inside yours takes only you and your members home.
+description=[*][b]Plays in 3D with [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528]Project Viewpoint[/url].[/b] The garage's taxi is a real 3D car, the pay phones are 3D models in either view, and every PhunTaxi option is on Viewpoint's first person menu. Big thanks to the Project Viewpoint team for a mod worth building for.
 description=[*][b]Multiplayer first.[/b] One code path for single player and multiplayer.
 description=[/list]
 description=
@@ -31,6 +32,7 @@ description=[h2]Requirements and compatibility[/h2]
 description=[list]
 description=[*][b]Requires [url=https://github.com/PhunZoider/PhunInteriors]PhunInteriors[/url].[/b] The Garage is one of its rooms.
 description=[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] is optional, for taxi fares. [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252660]PhunZones 2[/url] is optional, to lock the Taxi Garage down further and to set pay phone chance and spacing per zone.
+description=[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528]Project Viewpoint[/url] is optional, and supported: play the whole thing in 3D.
 description=[*]Ships a one cell map at cell 87,49. Another map mod using that cell will conflict.
 description=[/list]
 description=
@@ -43,7 +45,9 @@ description=[*][url=https://github.com/PhunZoider/PhunTaxi/blob/main/Docs/admin.
 description=[*][url=https://github.com/PhunZoider/PhunTaxi/blob/main/Docs/modding.md]Adding spawn points[/url]: the API for other mods
 description=[/list]
 description=
-description=[h2]More Phun Stuff[/h2]
+description=[img]https://i.ibb.co/DZ7Vffn/Thumbs-Up.png[/img]
+description=
+description=[h2]More Phun Mods[/h2]
 description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3812500419][img]https://i.ibb.co/DggjJWss/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725][img]https://i.ibb.co/4ZLgMZ4m/preview.png[/img][/url] 
 description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3793624522][img]https://i.ibb.co/k2k39f8w/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252660][img]https://i.ibb.co/3mQpB8ST/preview.png[/img][/url] 
 description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252110][img]https://i.ibb.co/d4y0BhnF/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676251425][img]https://i.ibb.co/fYNn5BLC/preview.png[/img][/url] 
