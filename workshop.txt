@@ -31,6 +31,7 @@ description=
 description=[h2]Requirements and compatibility[/h2]
 description=[list]
 description=[*][b]Requires [url=https://github.com/PhunZoider/PhunInteriors]PhunInteriors[/url].[/b] The Garage is one of its rooms.
+description=[*]Ensure you add phuntaxi to your server.ini's Map setting, it comes before Muldraugh. eg: [b]Map=phuninteriors;phuntaxi;Muldraugh, KY;[/b]
 description=[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725]PhunMart 2[/url] is optional, for taxi fares. [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252660]PhunZones 2[/url] is optional, to lock the Taxi Garage down further and to set pay phone chance and spacing per zone.
 description=[*][url=https://steamcommunity.com/sharedfiles/filedetails/?id=3809306528]Project Viewpoint[/url] is optional, and supported: play the whole thing in 3D.
 description=[*]Ships a one cell map at cell 87,49. Another map mod using that cell will conflict.
@@ -48,10 +49,7 @@ description=
 description=[img]https://i.ibb.co/DZ7Vffn/Thumbs-Up.png[/img]
 description=
 description=[h2]More Phun Mods[/h2]
-description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3812500419][img]https://i.ibb.co/DggjJWss/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725][img]https://i.ibb.co/4ZLgMZ4m/preview.png[/img][/url] 
-description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3793624522][img]https://i.ibb.co/k2k39f8w/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252660][img]https://i.ibb.co/3mQpB8ST/preview.png[/img][/url] 
-description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252110][img]https://i.ibb.co/d4y0BhnF/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676251425][img]https://i.ibb.co/fYNn5BLC/preview.png[/img][/url] 
-description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676250472][img]https://i.ibb.co/svW9sVvK/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3792193021][img]https://i.ibb.co/vCBcKtp8/preview.png[/img][/url] 
+description=[url=https://steamcommunity.com/sharedfiles/filedetails/?id=3812500419][img]https://i.ibb.co/DggjJWss/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3689006725][img]https://i.ibb.co/4ZLgMZ4m/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3793624522][img]https://i.ibb.co/k2k39f8w/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3816322755][img]https://i.ibb.co/GfPVgK6f/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252660][img]https://i.ibb.co/3mQpB8ST/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676252110][img]https://i.ibb.co/4rxBnRX/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676251425][img]https://i.ibb.co/fYNn5BLC/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3676250472][img]https://i.ibb.co/svW9sVvK/preview.png[/img][/url] [url=https://steamcommunity.com/sharedfiles/filedetails/?id=3792193021][img]https://i.ibb.co/vCBcKtp8/preview.png[/img][/url] 
 description=
 description=Coded with love for our awesome [url=https://discord.gg/v2USyAtP6q]PhunZoid[/url] community.
 tags=Build 42;Multiplayer;map
